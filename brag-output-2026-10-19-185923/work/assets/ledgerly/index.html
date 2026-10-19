@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050505" />
+    <title>Ledgerly — video UI stage</title>
+    <script defer src="./assets/index-MDa6CFD5.js"></script>
+    <link rel="stylesheet" href="./assets/index-i8PKu5Le.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>localStorage.removeItem("ledgerly.transactions.v1");</script>
+    <script>
+      (() => {
+        const reportReady = () => {
+          if (document.querySelector(".landing-primary")) {
+            window.parent.postMessage({ source: "ledgerly-app", type: "ready" }, "*");
+            return;
+          }
+          window.setTimeout(reportReady, 80);
+        };
+        const clickText = (text) => {
+          const button = [...document.querySelectorAll("button")].find((item) => item.textContent.trim().toLowerCase().includes(text.toLowerCase()));
+          button?.click();
+        };
+        const setField = (selector, value) => {
+          const input = document.querySelector(selector);
+          if (!input) return;
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+          setter.call(input, value);
+          input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value.slice(-1) }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+        const showMoneyOut = () => {
+          const expenses = [...document.querySelectorAll("button")].find((item) => item.textContent.trim().toLowerCase().includes("total expenses"));
+          expenses?.click();
+          window.setTimeout(() => {
+            const filter = [...document.querySelectorAll("button")].find((item) => item.textContent.trim().toLowerCase() === "money out");
+            filter?.click();
+            document.querySelector("#recent-transactions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 350);
+        };
+        window.addEventListener("message", (event) => {
+          const message = event.data;
+          if (message?.source !== "ledgerly-preview") return;
+          if (message.action === "ping") reportReady();
+          if (message.action === "clickText") clickText(message.text || "");
+          if (message.action === "setField") setField(message.selector, message.value || "");
+          if (message.action === "showMoneyOut") showMoneyOut();
+        });
+        reportReady();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ledgerly — launch film preview</title>
+    <style>
+      :root { color-scheme: dark; font-family: Manrope, sans-serif; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; min-width: 320px; min-height: 100%; margin: 0; background: #090a08; color: #f2f2ed; }
+      body { min-height: 100vh; overflow: hidden; }
+      #stage {
+        position: absolute; left: 0; top: 20px; width: 1920px; height: 1080px; overflow: hidden; transform-origin: top left;
+        background: #050505; isolation: isolate; color: #f2f2ed; font-family: Manrope, Arial, sans-serif;
+      }
+      .ambient { position: absolute; z-index: -1; width: 1050px; height: 820px; left: 350px; top: 90px; border-radius: 50%; background: radial-gradient(ellipse, rgba(189,242,123,.13), rgba(189,242,123,.025) 43%, transparent 72%); filter: blur(14px); opacity: .58; }
+      .grain { position: absolute; inset: 0; z-index: 6; opacity: .055; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.24'/%3E%3C/svg%3E"); mix-blend-mode: soft-light; }
+      .frame-movement { position: absolute; left: 50%; top: 50%; width: 1760px; height: 990px; margin-left: -880px; margin-top: -495px; overflow: hidden; border: 1px solid rgba(255,255,255,.11); border-radius: 20px; background: #050505; box-shadow: 0 45px 140px rgba(0,0,0,.64), 0 0 0 1px rgba(255,255,255,.025); }
+      .app-frame { position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px; margin-left: -800px; margin-top: -450px; border: 0; transform: scale(1.1); transform-origin: center; background: #050505; }
+      .hairline { position: absolute; z-index: 4; left: 160px; right: 160px; top: 28px; height: 1px; background: rgba(255,255,255,.14); }
+      #hairline-fill { width: 100%; height: 1px; background: #bdf27b; transform: scaleX(0); transform-origin: left; }
+      .hairline.running #hairline-fill { animation: line-draw 2.8s 300ms cubic-bezier(.37,0,.63,1) forwards; }
+      .ambient.running { animation: ambient-drift 6s ease-in-out forwards; }
+      @keyframes line-draw { to { transform: scaleX(1); } }
+      @keyframes ambient-drift { 0% { opacity: .58; transform: scale(1); } 35% { opacity: .78; transform: scale(1.1); } 100% { opacity: .42; transform: scale(1); } }
+      .microcopy { position: absolute; z-index: 5; left: 160px; top: 45px; display: flex; align-items: center; gap: 12px; color: #a6a79f; font: 500 16px/1.2 "DM Mono", monospace; letter-spacing: .13em; text-transform: uppercase; opacity: 0; }
+      .microcopy i { display: block; width: 6px; height: 6px; border-radius: 50%; background: #bdf27b; box-shadow: 0 0 15px rgba(189,242,123,.68); }
+      .copy-card { position: absolute; z-index: 7; right: 160px; top: 84px; max-width: 520px; padding: 16px 20px 17px; border: 1px solid rgba(255,255,255,.13); border-radius: 11px; background: rgba(9,10,8,.82); box-shadow: 0 18px 65px rgba(0,0,0,.34); backdrop-filter: blur(18px); opacity: 0; transform: translateY(20px); }
+      .copy-card .eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; color: #bdf27b; font: 500 16px/1.2 "DM Mono", monospace; letter-spacing: .13em; text-transform: uppercase; }
+      .copy-card .eyebrow::before { content: ""; width: 18px; height: 1px; background: #bdf27b; }
+      .copy-card p { max-width: 480px; margin: 0; color: #f2f2ed; font-size: 27px; font-weight: 500; line-height: 1.2; letter-spacing: -.045em; }
+      .wipe { position: absolute; z-index: 9; inset: 0; transform: scaleX(0); transform-origin: left; background: linear-gradient(100deg,#bdf27b 0%,#edf4dc 38%,#0b0c09 100%); }
+      .veil { position: absolute; z-index: 10; inset: 0; background: radial-gradient(ellipse at 50% 44%, rgba(2,3,2,.76), rgba(1,2,1,.94) 68%); opacity: 0; pointer-events: none; }
+      .outro { position: absolute; z-index: 11; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transform: scale(.97); }
+      .outro-mark { display: grid; width: 68px; height: 68px; margin-bottom: 26px; place-items: center; border: 1px solid rgba(189,242,123,.54); border-radius: 18px; color: #bdf27b; background: linear-gradient(145deg,#171a13,#090a08); box-shadow: 0 0 55px rgba(189,242,123,.14), inset 0 1px rgba(255,255,255,.1); }
+      .outro-name { margin: 0; color: #f2f2ed; font-size: 82px; font-weight: 650; letter-spacing: -.085em; line-height: 1; }
+      .outro-name span { color: #bdf27b; }
+      .outro-rule { width: 70px; height: 1px; margin: 26px 0 22px; background: #bdf27b; transform: scaleX(0); }
+      .outro-tagline { margin: 0; color: #d8d9d2; font-size: 33px; font-weight: 450; letter-spacing: -.045em; }
+      .outro-footer { position: absolute; bottom: 92px; color: #a1a19b; font: 500 16px/1 "DM Mono", monospace; letter-spacing: .16em; text-transform: uppercase; }
+      .music-credit { position: absolute; bottom: 43px; color: #777971; font: 400 12px/1.4 "DM Mono", monospace; letter-spacing: .025em; }
+      .audio-track { display: none; }
+      #player-controls { position: fixed; z-index: 20; right: 20px; bottom: 12px; left: 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; color: #a4a59e; font: 12px/1.4 "DM Mono", monospace; }
+      #player-controls .controls { display: flex; gap: 9px; }
+      #player-controls button { min-height: 38px; padding: 0 14px; border: 1px solid #34362f; border-radius: 8px; color: #f2f2ed; background: #11120f; cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
+      #player-controls button:hover { border-color: #bdf27b; color: #bdf27b; }
+      #player-controls button.primary { border-color: #bdf27b; color: #10130b; background: #bdf27b; font-weight: 700; }
+      #player-controls button:disabled { cursor: wait; opacity: .52; }
+      @media (max-width: 1400px) { #player-controls { font-size: 10px; } }
+    </style>
+    
+  </head>
+  <body>
+      <div id="stage" data-composition-id="ledgerly-launch" data-start="0" data-duration="20" data-width="1920" data-height="1080">
+        <div class="ambient" id="ambient"></div>
+        <div class="frame-movement" id="frame-movement">
+          <iframe class="app-frame" id="app-frame" src="work/assets/ledgerly/index.html" title="Ledgerly product UI" allow="autoplay"></iframe>
+        </div>
+        <div class="hairline" id="hairline"><div id="hairline-fill"></div></div>
+        <div class="microcopy" id="microcopy"><i></i><span>LEDGERLY · PERSONAL FINANCE</span></div>
+        <div class="copy-card" id="copy-overview"><div class="eyebrow">02 / THE WHOLE PICTURE</div><p>Income, spending, and what remains.</p></div>
+        <div class="copy-card" id="copy-transaction"><div class="eyebrow">03 / RECORD THE MOMENT</div><p>Add a transaction in a few seconds.</p></div>
+        <div class="copy-card" id="copy-flow"><div class="eyebrow">04 / FOLLOW THE FLOW</div><p>See where the money went.</p></div>
+        <div class="wipe" id="wipe"></div>
+        <div class="veil" id="veil"></div>
+        <div class="outro" id="outro">
+          <div class="outro-mark"><svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 12l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5"/></svg></div>
+          <h1 class="outro-name">ledgerly<span>.</span></h1>
+          <div class="outro-rule" id="outro-rule"></div>
+          <p class="outro-tagline">Give every rupee a direction.</p>
+          <div class="outro-footer">Make room for a clearer view.</div>
+          <div class="music-credit">Music: “Happy Beats &amp; Business Moves Vol. 12” — Sascha Ende · ende.app</div>
+        </div>
+        <div class="grain"></div>
+        <audio id="music" class="audio-track" data-start="0" data-duration="20" data-track-index="0" data-volume="0.28" src="work/assets/music/ledgerly-music-20s.mp3" preload="auto"></audio>
+        <audio id="soft-impact" class="audio-track" data-start="4.39" data-duration="0.2" data-track-index="1" data-volume="0.42" src="work/assets/sfx/impactSoft_medium_001.ogg" preload="auto"></audio>
+        <audio id="save-click" class="audio-track" data-start="9.29" data-duration="0.08" data-track-index="1" data-volume="0.32" src="work/assets/sfx/click_003.ogg" preload="auto"></audio>
+        <audio id="outro-impact" class="audio-track" data-start="17.47" data-duration="0.2" data-track-index="1" data-volume="0.32" src="work/assets/sfx/impactSoft_medium_001.ogg" preload="auto"></audio>
+      </div>
+      <div id="player-controls">
+        <span id="status">Loading the isolated Ledgerly UI…</span>
+        <div class="controls"><button id="sound" type="button">Enable sound</button><button class="primary" id="play" type="button" disabled>Play 20s preview</button></div>
+      </div>
+    <script>
+      (() => {
+        const stage = document.getElementById("stage");
+        const frame = document.getElementById("app-frame");
+        const playButton = document.getElementById("play");
+        const soundButton = document.getElementById("sound");
+        const status = document.getElementById("status");
+        const previewMusic = new Audio("work/assets/music/ledgerly-music-20s.mp3");
+        previewMusic.preload = "auto";
+        let soundEnabled = false;
+        let started = false;
+        let localTimers = [];
+        let rootTimeline;
+
+        function fitStage() {
+          const scale = Math.min((window.innerWidth - 40) / 1920, (window.innerHeight - 112) / 1080, 1);
+          const fitted = Math.max(.18, scale);
+          stage.style.left = `${Math.round((window.innerWidth - 1920 * fitted) / 2)}px`;
+          stage.style.transform = `scale(${fitted})`;
+        }
+        fitStage();
+        window.addEventListener("resize", fitStage);
+
+        function sendToApp(action, details = {}) {
+          frame.contentWindow.postMessage({ source: "ledgerly-preview", action, ...details }, "*");
+        }
+        function enterDashboard() { sendToApp("clickText", { text: "Open your dashboard" }); }
+        function openTransaction() { sendToApp("clickText", { text: "Add transaction" }); }
+        function typeField(selector, value, duration, timelineStart) {
+          if (!window.gsap || !rootTimeline) return;
+          const progress = { index: 0 };
+          rootTimeline.to(progress, {
+            index: value.length,
+            duration,
+            ease: "none",
+            onUpdate() {
+              sendToApp("setField", { selector, value: value.slice(0, Math.floor(progress.index)) });
+            },
+          }, timelineStart);
+        }
+        function showMoneyOut() { sendToApp("showMoneyOut"); }
+        function showCard(id) {
+          document.querySelectorAll(".copy-card").forEach((card) => { card.style.opacity = "0"; });
+          const target = document.getElementById(id);
+          if (!target) return;
+          target.style.opacity = "1";
+          target.style.transform = "translateY(0)";
+        }
+        function playPreviewSfx(id) {
+          if (!soundEnabled) return;
+          const isClick = id === "save-click";
+          const copy = new Audio(isClick ? "work/assets/sfx/click_003.ogg" : "work/assets/sfx/impactSoft_medium_001.ogg");
+          copy.volume = isClick ? .32 : .42;
+          copy.play().catch(() => {});
+          copy.addEventListener("ended", () => copy.remove(), { once: true });
+        }
+        function cover(action) {
+          const wipe = document.getElementById("wipe");
+          wipe.style.transformOrigin = "left center";
+          wipe.style.transition = "transform 300ms cubic-bezier(.76,0,.24,1)";
+          wipe.style.transform = "scaleX(1)";
+          window.setTimeout(() => {
+            action();
+            wipe.style.transition = "transform 330ms cubic-bezier(.16,1,.3,1)";
+            wipe.style.transformOrigin = "right center";
+            wipe.style.transform = "scaleX(0)";
+          }, 310);
+        }
+        function setTextOnFrame(selector, value) { sendToApp("setField", { selector, value }); }
+        function onStageReady() {
+          sendToApp("ping");
+        }
+        window.addEventListener("message", (event) => {
+          if (event.source !== frame.contentWindow || event.data?.source !== "ledgerly-app" || event.data?.type !== "ready") return;
+          playButton.disabled = false;
+          status.textContent = "Clean demo state · Coffee / ₹240 is entered during playback";
+        });
+        frame.addEventListener("load", () => window.setTimeout(onStageReady, 180));
+
+        function buildTimeline() {
+          if (!window.gsap || rootTimeline) return;
+          rootTimeline = window.gsap.timeline({ paused: true });
+          rootTimeline.from("#frame-movement", { y: 18, duration: .9, ease: "power3.out" }, .2);
+          rootTimeline.from("#microcopy", { opacity: 0, y: -12, duration: .55, ease: "sine.out" }, .35);
+          rootTimeline.fromTo("#hairline-fill", { scaleX: 0 }, { scaleX: 1, duration: 2.8, ease: "sine.inOut" }, .3);
+          rootTimeline.to("#ambient", { opacity: .78, scale: 1.1, duration: 1.8, ease: "sine.inOut" }, .7);
+          rootTimeline.to("#ambient", { opacity: .48, scale: 1, duration: 2.4, ease: "sine.inOut" }, 2.5);
+
+          function addWipe(time, action) {
+            rootTimeline.set("#wipe", { transformOrigin: "left center", scaleX: 0 }, time);
+            rootTimeline.to("#wipe", { scaleX: 1, duration: .28, ease: "power4.in" }, time);
+            rootTimeline.call(action, [], time + .29);
+            rootTimeline.set("#wipe", { transformOrigin: "right center" }, time + .30);
+            rootTimeline.to("#wipe", { scaleX: 0, duration: .34, ease: "power3.out" }, time + .30);
+          }
+
+          // beat-locked: landing-to-dashboard reveal at the 4.39s music cue.
+          addWipe(4.10, () => { enterDashboard(); showCard("copy-overview"); });
+          rootTimeline.fromTo("#copy-overview", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .6, ease: "expo.out" }, 4.45);
+          addWipe(7.12, () => { showCard("copy-transaction"); openTransaction(); });
+          rootTimeline.fromTo("#copy-transaction", { opacity: 0, y: 21 }, { opacity: 1, y: 0, duration: .5, ease: "back.out(1.35)" }, 7.46);
+          typeField(".transaction-form input:first-of-type", "Coffee", .55, 8.02);
+          typeField(".transaction-form input[type=number]", "240", .48, 8.58);
+          // beat-locked: save the demo transaction at the 9.29s cue.
+          rootTimeline.call(() => { sendToApp("clickText", { text: "Save transaction" }); }, [], 9.27);
+          // Show the actual Money out card acting as a filter and smoothly scrolling to the table.
+          addWipe(11.05, () => { showCard("copy-flow"); showMoneyOut(); });
+          rootTimeline.fromTo("#copy-flow", { opacity: 0, x: 25 }, { opacity: 1, x: 0, duration: .58, ease: "power2.out" }, 11.40);
+          rootTimeline.to("#ambient", { opacity: .72, scale: 1.07, duration: 1.2, ease: "sine.inOut" }, 13.1);
+          rootTimeline.to("#ambient", { opacity: .4, scale: 1, duration: 1.1, ease: "sine.inOut" }, 14.3);
+
+          // beat-locked: final logo hold at the 17.47s music cue.
+          addWipe(17.18, () => {
+            document.getElementById("veil").style.opacity = "1";
+            document.getElementById("outro").style.opacity = "1";
+          });
+          rootTimeline.fromTo("#outro", { opacity: 0, scale: .955, filter: "blur(8px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: .72, ease: "power3.out" }, 17.52);
+          rootTimeline.fromTo("#outro-rule", { scaleX: 0 }, { scaleX: 1, duration: .7, ease: "expo.out" }, 17.80);
+          rootTimeline.to("#veil", { opacity: 1, duration: .45, ease: "sine.inOut" }, 19.50);
+          rootTimeline.to("#outro", { opacity: 0, duration: .4, ease: "sine.in" }, 19.58);
+          window.__timelines = window.__timelines || {};
+          window.__timelines["ledgerly-launch"] = rootTimeline;
+        }
+
+        function setCardFallback(id) {
+          const cards = [...document.querySelectorAll(".copy-card")];
+          cards.forEach((card) => { card.style.opacity = "0"; card.style.transform = "translateY(20px)"; });
+          const card = document.getElementById(id);
+          if (card) { card.style.transition = "opacity .55s cubic-bezier(.16,1,.3,1), transform .55s cubic-bezier(.16,1,.3,1)"; card.style.opacity = "1"; card.style.transform = "translateY(0)"; }
+        }
+        function addLocalTimer(time, action) { localTimers.push(window.setTimeout(action, time * 1000)); }
+        function playFallback() {
+          document.getElementById("frame-movement").style.cssText += ";opacity:1;transform:translateY(0);transition:opacity .9s ease, transform .9s cubic-bezier(.16,1,.3,1)";
+          document.getElementById("microcopy").style.cssText += ";opacity:1;transform:translateY(0);transition:opacity .55s ease,transform .55s ease";
+          document.querySelector(".hairline").classList.add("running");
+          document.getElementById("ambient").classList.add("running");
+          addLocalTimer(4.1, () => cover(() => { enterDashboard(); setCardFallback("copy-overview"); }));
+          addLocalTimer(7.12, () => cover(() => { setCardFallback("copy-transaction"); openTransaction(); }));
+          addLocalTimer(8.02, () => setCardFallback("copy-transaction"));
+          addLocalTimer(8.15, () => setTextOnFrame(".transaction-form input:first-of-type", "Coffee"));
+          addLocalTimer(8.75, () => setTextOnFrame(".transaction-form input[type=number]", "240"));
+          addLocalTimer(9.29, () => { sendToApp("clickText", { text: "Save transaction" }); });
+          addLocalTimer(11.05, () => cover(() => { setCardFallback("copy-flow"); showMoneyOut(); }));
+          addLocalTimer(17.18, () => cover(() => {
+            document.getElementById("veil").style.transition = "opacity .45s ease";
+            document.getElementById("veil").style.opacity = "1";
+            const outro = document.getElementById("outro");
+            outro.style.transition = "opacity .72s cubic-bezier(.16,1,.3,1), transform .72s cubic-bezier(.16,1,.3,1), filter .72s ease";
+            outro.style.opacity = "1"; outro.style.transform = "scale(1)"; outro.style.filter = "blur(0)";
+            document.getElementById("outro-rule").style.transition = "transform .7s cubic-bezier(.16,1,.3,1)";
+            document.getElementById("outro-rule").style.transform = "scaleX(1)";
+          }));
+          addLocalTimer(19.5, () => {
+            document.getElementById("veil").style.transition = "opacity .45s ease";
+            document.getElementById("veil").style.opacity = "1";
+            document.getElementById("outro").style.opacity = "0";
+          });
+          if (soundEnabled) { previewMusic.volume = .28; previewMusic.currentTime = 0; previewMusic.play().catch(() => {}); }
+          schedulePreviewSfx();
+          localTimers.push(window.setTimeout(() => { status.textContent = "Preview complete · clean demo state reset on reload"; started = false; playButton.textContent = "Replay 20s preview"; }, 20100));
+        }
+
+        function schedulePreviewSfx() {
+          addLocalTimer(4.39, () => playPreviewSfx("soft-impact"));
+          addLocalTimer(9.29, () => playPreviewSfx("save-click"));
+          addLocalTimer(17.47, () => playPreviewSfx("outro-impact"));
+        }
+
+        playButton.addEventListener("click", () => {
+          if (started) return;
+          if (playButton.textContent.includes("Replay")) { window.location.reload(); return; }
+          if (playButton.disabled) return;
+          started = true;
+          playButton.textContent = "Playing…";
+          if (window.gsap) {
+            buildTimeline();
+            if (soundEnabled) { previewMusic.volume = .28; previewMusic.currentTime = 0; previewMusic.play().catch(() => {}); }
+            schedulePreviewSfx();
+            rootTimeline.play(0);
+            localTimers.push(window.setTimeout(() => { status.textContent = "Preview complete · clean demo state reset on reload"; started = false; playButton.textContent = "Replay 20s preview"; }, 20100));
+          } else {
+            playFallback();
+          }
+        });
+        soundButton.addEventListener("click", async () => {
+          soundEnabled = !soundEnabled;
+          soundButton.textContent = soundEnabled ? "Sound on ✓" : "Sound off";
+          if (soundEnabled && started) { previewMusic.currentTime = rootTimeline ? rootTimeline.time() : previewMusic.currentTime; previewMusic.volume = .28; previewMusic.play().catch(() => {}); }
+        });
+        window.addEventListener("keydown", (event) => {
+          if (event.code === "Space" && event.target.tagName !== "BUTTON") { event.preventDefault(); playButton.click(); }
+        });
+
+        if (window.gsap) buildTimeline();
+      })();
+    </script>
+  </body>
+</html>
