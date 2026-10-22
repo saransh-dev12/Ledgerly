@@ -1,0 +1,43 @@
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", sans-serif;
+  --font-money: "DM Mono", monospace;
+
+  --color-ledger-bg: #050505;
+  --color-ledger-surface: #111210;
+  --color-ledger-border: #292a26;
+  --color-ledger-accent: #bdf27b;
+  --color-ledger-text: #f2f2ed;
+  --color-ledger-muted: #92928b;
+}
+
+:root {
+  font-family: "Manrope", sans-serif;
+  color: #f2f2ed;
+  background: #050505;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #050505;
+}
+
+button,
+input {
+  font: inherit;
+}

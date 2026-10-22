@@ -1,15 +1,1308 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#050505" />
-    <meta name="description" content="Ledgerly gives you a clearer view of what came in, where it went, and what you can do next." />
-    <title>Ledgerly — Give every rupee a direction</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050605">
+  <meta name="description" content="Ledgerly brings income, spending, and what remains into one calm, clear view.">
+  <title>Ledgerly — Give every rupee a direction</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Italiana&family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@1,500&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+    html, body { width: 100%; margin: 0; padding: 0; background: #000; -ms-overflow-style: none; scrollbar-width: none; }
+    body { min-height: 460vh; overflow-x: hidden; color: #fff; font-family: 'Outfit', sans-serif; cursor: none; }
+    * { cursor: none !important; }
+    ::-webkit-scrollbar { display: none; width: 0; }
+
+    :root { --accent: #c9ed91; --accent-dim: #8eaa68; --muted: #c4c5bf; --line: rgb(255 255 255 / 13%); }
+    #webgl { position: fixed; inset: 0; z-index: 1; width: 100%; height: 100%; outline: none; background: radial-gradient(ellipse at 54% 48%, #12170f 0%, #080a07 48%, #000 88%); }
+    .cursor-inner, .cursor-outer { position: fixed; top: 0; left: 0; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+    .cursor-inner { z-index: 9999; width: 6px; height: 6px; border: 2px solid #fff; }
+    .cursor-outer { z-index: 9998; width: 40px; height: 40px; border: 1.5px solid rgb(255 255 255 / 70%); transition: width .3s, height .3s, background .3s, border-color .3s; }
+    body.cursor-hover .cursor-outer { width: 58px; height: 58px; border-color: var(--accent); background: rgb(201 237 145 / 6%); }
+
+    .cinematic-container { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; padding: 0 60px 40px; pointer-events: none; }
+    .main-header { position: relative; z-index: 20; display: flex; width: 100%; min-height: 70px; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 0; border-bottom: 1px solid rgb(255 255 255 / 11%); pointer-events: auto; }
+    .brand { color: #f4f2e9; font-size: 14px; font-weight: 600; letter-spacing: 5px; text-decoration: none; text-transform: uppercase; white-space: nowrap; }
+    .brand span { color: var(--accent); }
+    .header-nav { display: flex; align-items: center; justify-content: center; gap: 22px; }
+    .nav-link { color: rgb(255 255 255 / 74%); font-size: 10px; font-weight: 400; letter-spacing: 1.8px; text-decoration: none; text-transform: uppercase; transition: color .3s; white-space: nowrap; }
+    .nav-link:hover, .nav-link:focus-visible { color: var(--accent); }
+    .nav-dot { width: 3px; height: 3px; flex: 0 0 3px; border-radius: 50%; background: rgb(255 255 255 / 24%); }
+    .header-actions { display: flex; align-items: center; gap: 18px; }
+    .privacy-note { display: inline-flex; align-items: center; gap: 7px; color: rgb(255 255 255 / 58%); font-size: 9px; letter-spacing: .7px; white-space: nowrap; }
+    .privacy-note i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px rgb(201 237 145 / 65%); }
+    .contact-btn { display: inline-flex; min-height: 38px; align-items: center; gap: 10px; padding: 0 17px; border: 1px solid rgb(201 237 145 / 75%); border-radius: 24px; color: #11140c; background: var(--accent); font-size: 9px; font-weight: 600; letter-spacing: 1px; text-decoration: none; text-transform: uppercase; transition: transform .3s, background .3s, box-shadow .3s; white-space: nowrap; }
+    .contact-btn:hover { transform: translateY(-2px); background: #dbf7b2; box-shadow: 0 8px 26px rgb(201 237 145 / 14%); }
+    .btn-circle { width: 6px; height: 6px; border: 1px solid #17200d; border-radius: 50%; background: transparent; }
+
+    .slide { position: absolute; right: auto; bottom: 12%; left: 0; width: 100%; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .55s ease, visibility .55s; }
+    .slide.active { pointer-events: auto; opacity: 1; visibility: visible; }
+    #slide-1 { bottom: 12%; }
+    #slide-1 .slide-title { margin-left: 5.8vw; }
+    #slide-1 .desc-row { position: relative; display: flex; width: 100%; }
+    #slide-1 .col-1 { width: calc(25vw - 60px); max-width: 360px; margin-left: 5.8vw; }
+    #slide-1 .col-2 { position: absolute; left: calc(25vw + 40px); width: calc(25vw - 60px); max-width: 360px; }
+    #slide-2 { bottom: 9%; left: 5.8vw; width: min(560px, 45vw); }
+    #slide-2 .slide-title, #slide-2 .slide-kicker { margin-left: 0; }
+    #slide-2 .slide-desc { width: min(420px, 100%); margin-left: 0; }
+    #slide-3 { bottom: 10%; left: 5.8vw; width: min(620px, 48vw); }
+    #slide-4 { bottom: 10%; left: 5.8vw; width: min(760px, 66vw); }
+    .slide-title { margin-bottom: 20px; color: #f5f4ec; font-family: 'Italiana', Georgia, serif; font-size: clamp(60px, 7.5vw, 108px); font-weight: 400; letter-spacing: 0; line-height: 1.02; text-wrap: balance; }
+    #slide-2 .slide-title, #slide-3 .slide-title, #slide-4 .slide-title { font-size: clamp(52px, 6.7vw, 94px); }
+    .slide-title .char { display: inline-block; opacity: 0; transform: translateY(36px); filter: blur(8px); transition: opacity .62s cubic-bezier(.25, 1, .5, 1), transform .62s cubic-bezier(.25, 1, .5, 1), filter .62s cubic-bezier(.25, 1, .5, 1); }
+    .slide.active .slide-title .char { opacity: 1; transform: translateY(0); filter: blur(0); }
+    .slide-desc { max-width: 390px; color: #d1d5ce; font-size: 14px; font-weight: 300; letter-spacing: .25px; line-height: 1.75; opacity: 0; transform: translateY(26px); transition: opacity .8s cubic-bezier(.25, 1, .5, 1), transform .8s cubic-bezier(.25, 1, .5, 1); transition-delay: .35s; }
+    .slide.active .slide-desc { opacity: 1; transform: translateY(0); }
+    .slide-kicker { display: block; margin-bottom: 13px; color: var(--accent); font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
+    #slide-1 .slide-kicker { margin-left: 5.8vw; }
+    #slide-2 .slide-kicker { margin-left: 0; }
+    #slide-3 .slide-kicker { margin-left: 0; }
+    #slide-4 .slide-kicker { margin-left: 0; }
+    .slide-cta { display: inline-flex; align-items: center; gap: 12px; margin-top: 24px; padding: 11px 0; border: 0; color: var(--accent); background: transparent; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-decoration: none; text-transform: uppercase; transition: gap .25s, color .25s; pointer-events: auto; }
+    .slide-cta:hover { gap: 18px; color: #e0f6c0; }
+    .slide-cta span { font-size: 16px; }
+
+    /* Ledgerly's product preview takes the place of the unrelated editorial photo. */
+    .slide-image-mask { position: fixed; top: 15vh; right: max(8vw, 60px); width: min(34vw, 440px); min-width: 330px; z-index: 2; overflow: hidden; clip-path: inset(0 0 100% 0); opacity: 0; transform: translateY(14px); transition: clip-path 1.25s cubic-bezier(.16, 1, .3, 1), opacity .65s ease, transform 1.25s cubic-bezier(.16, 1, .3, 1); pointer-events: none; }
+    .slide-image-mask.active { clip-path: inset(0 0 0 0); opacity: 1; transform: translateY(0); }
+    .dashboard-card { position: relative; min-height: 326px; padding: 22px 23px 18px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 10px; background: linear-gradient(145deg, rgb(19 22 16 / 95%), rgb(7 9 7 / 94%) 72%); box-shadow: 0 28px 88px rgb(0 0 0 / 55%), inset 0 1px rgb(255 255 255 / 5%); backdrop-filter: blur(16px); }
+    .dashboard-card::before { position: absolute; top: 0; right: 15%; left: 15%; height: 1px; content: ''; background: linear-gradient(90deg, transparent, rgb(201 237 145 / 65%), transparent); }
+    .preview-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 17px; border-bottom: 1px solid rgb(255 255 255 / 10%); color: #aeb2a6; font-size: 8px; font-weight: 600; letter-spacing: 1.2px; }
+    .preview-mark { display: inline-flex; align-items: center; gap: 8px; }
+    .preview-mark b { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid rgb(201 237 145 / 38%); border-radius: 6px; color: var(--accent); font-family: 'Italiana', serif; font-size: 14px; font-weight: 400; }
+    .preview-status { color: #74796b; font-size: 7px; }
+    .balance-label { display: flex; align-items: center; gap: 9px; margin-top: 22px; color: #8c9185; font-size: 7px; font-weight: 600; letter-spacing: 1.5px; }
+    .balance-label em { padding: 4px 6px; border: 1px solid rgb(255 255 255 / 13%); border-radius: 3px; color: #9da093; font-size: 6px; font-style: normal; letter-spacing: .6px; }
+    .balance-value { display: flex; align-items: center; gap: 10px; margin-top: 9px; color: #f3f3eb; font-family: 'Outfit', sans-serif; font-size: clamp(25px, 2.4vw, 34px); font-weight: 300; letter-spacing: -1.5px; }
+    .balance-change { padding: 4px 7px; border: 1px solid rgb(201 237 145 / 25%); border-radius: 4px; color: #d2f1aa; background: rgb(201 237 145 / 7%); font-size: 8px; letter-spacing: 0; }
+    .preview-chart { position: relative; height: 110px; margin-top: 9px; }
+    .preview-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .chart-labels { position: absolute; right: 0; bottom: 0; left: 0; display: flex; justify-content: space-between; color: #74796c; font-size: 6px; letter-spacing: .7px; }
+    .preview-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin-top: 12px; padding-top: 14px; border-top: 1px solid rgb(255 255 255 / 10%); }
+    .preview-metrics div { display: grid; gap: 5px; padding-left: 12px; border-left: 1px solid rgb(255 255 255 / 10%); }
+    .preview-metrics div:first-child { padding-left: 0; border-left: 0; }
+    .preview-metrics span { color: #858a7e; font-size: 6px; font-weight: 600; letter-spacing: .8px; }
+    .preview-metrics strong { overflow: hidden; color: #e6e8df; font-size: clamp(10px, 1.1vw, 14px); font-weight: 400; white-space: nowrap; }
+    .preview-metrics small { color: #777c70; font-size: 6px; white-space: nowrap; }
+    .preview-caption { display: flex; align-items: center; gap: 7px; margin-top: 11px; color: #787d72; font-size: 7px; letter-spacing: .3px; }
+    .preview-caption i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+
+    .dashboard-view { position: fixed; inset: 0; z-index: 100; display: none; overflow-y: auto; overscroll-behavior: contain; color: #f4f5ef; background: #090b09; }
+    .dashboard-view.open { display: block; }
+    .dashboard-view::before { position: fixed; inset: 0; z-index: -1; content: ''; pointer-events: none; background: radial-gradient(ellipse at 68% 0%, rgb(64 83 43 / 13%), transparent 44%), #090b09; }
+    body.dashboard-open { min-height: 100vh; overflow: hidden; }
+    body.dashboard-open .cinematic-container, body.dashboard-open .grid-horizontal-line, body.dashboard-open .grid-lines, body.dashboard-open #webgl { visibility: hidden; }
+    .dash-layout { display: grid; width: 100%; min-height: 100vh; grid-template-columns: 248px minmax(0, 1fr); }
+    .dash-sidebar { position: sticky; top: 0; display: flex; height: 100vh; flex-direction: column; padding: 30px 20px 22px; border-right: 1px solid rgb(255 255 255 / 9%); background: rgb(7 9 7 / 75%); }
+    .dash-brand { display: inline-flex; align-items: center; gap: 11px; color: #f4f2e9; font-size: 12px; font-weight: 600; letter-spacing: 3px; text-decoration: none; }
+    .dash-brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid rgb(201 237 145 / 40%); border-radius: 9px; color: var(--accent); font-family: 'Italiana', serif; font-size: 19px; font-weight: 400; letter-spacing: 0; }
+    .dash-workspace { margin: 42px 0 12px 10px; color: #70776c; font-size: 9px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; }
+    .dash-side-nav { display: grid; gap: 5px; }
+    .dash-side-link { display: flex; min-height: 42px; align-items: center; gap: 12px; padding: 0 11px; border: 1px solid transparent; border-radius: 7px; color: #92968c; font-size: 12px; text-decoration: none; transition: color .2s, background .2s, border .2s; }
+    .dash-side-link svg { width: 16px; height: 16px; color: #747c6e; }
+    .dash-side-link.active, .dash-side-link:hover { border-color: rgb(201 237 145 / 13%); color: #e8f2dc; background: rgb(201 237 145 / 7%); }
+    .dash-side-link.active svg, .dash-side-link:hover svg { color: var(--accent); }
+    .dash-sidebar-bottom { display: grid; gap: 18px; margin-top: auto; }
+    .dash-side-note { padding: 14px; border: 1px solid rgb(255 255 255 / 9%); border-radius: 8px; background: rgb(255 255 255 / 2%); }
+    .dash-side-note span { display: block; margin-bottom: 7px; color: var(--accent); font-size: 8px; font-weight: 600; letter-spacing: 1.3px; text-transform: uppercase; }
+    .dash-side-note p { color: #8e9387; font-size: 11px; line-height: 1.6; }
+    .dash-main { min-width: 0; padding: 0 clamp(26px, 5vw, 76px) 70px; }
+    .dash-topbar { display: flex; min-height: 78px; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid rgb(255 255 255 / 9%); }
+    .dash-breadcrumb { color: #777e72; font-size: 10px; letter-spacing: .4px; }
+    .dash-breadcrumb b { margin: 0 9px; color: #4d5449; font-weight: 300; }
+    .dash-breadcrumb strong { color: #e1e4da; font-weight: 400; }
+    .dash-top-actions { display: flex; align-items: center; gap: 18px; }
+    .dash-live { display: inline-flex; align-items: center; gap: 8px; color: #899084; font-size: 9px; letter-spacing: .6px; }
+    .dash-live i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px rgb(201 237 145 / 70%); }
+    .dash-back { display: inline-flex; min-height: 34px; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgb(255 255 255 / 14%); border-radius: 18px; color: #d6d9d0; background: transparent; font: 400 9px 'Outfit', sans-serif; letter-spacing: .7px; text-transform: uppercase; transition: border-color .2s, color .2s, background .2s; }
+    .dash-back:hover { border-color: rgb(201 237 145 / 60%); color: var(--accent); background: rgb(201 237 145 / 5%); }
+    .dash-content { width: min(1120px, 100%); margin: 0 auto; }
+    .dash-welcome { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; margin: 48px 0 27px; }
+    .dash-eyebrow { display: block; margin-bottom: 12px; color: var(--accent); font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; }
+    .dash-welcome h1 { color: #f1f2ec; font-family: 'Italiana', serif; font-size: clamp(36px, 4.4vw, 58px); font-weight: 400; letter-spacing: -.5px; line-height: 1; }
+    .dash-welcome p { margin-top: 12px; color: #888e83; font-size: 12px; font-weight: 300; line-height: 1.6; }
+    .dash-primary { display: inline-flex; min-height: 40px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 9px; padding: 0 16px; border: 1px solid rgb(201 237 145 / 68%); border-radius: 5px; color: #10140b; background: var(--accent); font: 600 10px 'Outfit', sans-serif; letter-spacing: .4px; transition: transform .2s, background .2s; }
+    .dash-primary:hover { transform: translateY(-1px); background: #dbf7b2; }
+    .dash-primary span { font-size: 17px; font-weight: 300; line-height: 0; }
+    .dash-metrics { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 13px; }
+    .dash-card { border: 1px solid rgb(255 255 255 / 10%); border-radius: 8px; background: linear-gradient(145deg, rgb(19 22 17 / 92%), rgb(12 14 12 / 93%)); box-shadow: inset 0 1px rgb(255 255 255 / 3%); }
+    .dash-balance-card { min-height: 151px; padding: 19px 21px; }
+    .dash-card-label { color: #8b9185; font-size: 9px; font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; }
+    .dash-balance-number { display: block; margin: 13px 0 8px; color: #f4f4ed; font-size: clamp(27px, 3vw, 38px); font-weight: 300; letter-spacing: -1.7px; }
+    .dash-balance-foot { display: flex; align-items: center; gap: 7px; color: #7d8477; font-size: 10px; }
+    .dash-balance-foot i { color: var(--accent); font-style: normal; }
+    .dash-stat { min-height: 151px; padding: 19px 20px; }
+    .dash-stat-head { display: flex; align-items: center; justify-content: space-between; }
+    .dash-stat-icon { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid rgb(255 255 255 / 10%); border-radius: 7px; color: #bbc2b1; font-size: 15px; }
+    .dash-stat.income .dash-stat-icon { border-color: rgb(201 237 145 / 20%); color: var(--accent); background: rgb(201 237 145 / 6%); }
+    .dash-stat.expenses .dash-stat-icon { border-color: rgb(221 157 118 / 20%); color: #d89a76; background: rgb(221 157 118 / 6%); }
+    .dash-stat strong { display: block; margin-top: 17px; color: #e6e8e0; font-size: 22px; font-weight: 400; letter-spacing: -.6px; }
+    .dash-stat small { display: block; margin-top: 5px; color: #777e72; font-size: 9px; }
+    .dash-columns { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(230px, .8fr); gap: 13px; margin-top: 14px; }
+    .dash-chart-card, .dash-insight-card { min-height: 239px; padding: 19px 21px; }
+    .dash-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+    .dash-panel-heading h2 { color: #e6e9e0; font-size: 13px; font-weight: 400; }
+    .dash-panel-heading p { margin-top: 5px; color: #767d71; font-size: 9px; }
+    .dash-period { padding: 6px 8px; border: 1px solid rgb(255 255 255 / 10%); border-radius: 4px; color: #a0a69a; font-size: 8px; }
+    .dash-chart { position: relative; height: 143px; margin-top: 12px; }
+    .dash-chart svg { width: 100%; height: 100%; overflow: visible; }
+    .dash-chart-labels { position: absolute; right: 0; bottom: 0; left: 0; display: flex; justify-content: space-between; color: #656c61; font-size: 8px; letter-spacing: .4px; }
+    .dash-chart-legend { display: flex; gap: 18px; margin-top: 6px; color: #888f82; font-size: 8px; }
+    .dash-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .dash-chart-legend i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .dash-chart-legend span:last-child i { background: #8598d7; }
+    .dash-insight-card { position: relative; overflow: hidden; }
+    .dash-insight-card::after { position: absolute; right: -36px; bottom: -55px; width: 150px; height: 150px; border: 1px solid rgb(201 237 145 / 12%); border-radius: 50%; box-shadow: 0 0 0 22px rgb(201 237 145 / 2%), 0 0 0 44px rgb(201 237 145 / 2%); content: ''; }
+    .dash-insight-tag { display: inline-flex; margin-top: 25px; padding: 5px 7px; border: 1px solid rgb(201 237 145 / 22%); border-radius: 3px; color: #c5e59a; background: rgb(201 237 145 / 5%); font-size: 8px; letter-spacing: .4px; }
+    .dash-insight-card h3 { max-width: 230px; margin-top: 11px; color: #e9ece3; font-family: 'Italiana', serif; font-size: 23px; font-weight: 400; line-height: 1.2; }
+    .dash-insight-card > p { max-width: 245px; margin-top: 8px; color: #878e81; font-size: 10px; line-height: 1.65; }
+    .dash-activity { margin-top: 14px; padding: 20px 21px 8px; }
+    .dash-activity-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .dash-activity-top h2 { color: #e6e9e0; font-size: 13px; font-weight: 400; }
+    .dash-activity-top p { margin-top: 5px; color: #767d71; font-size: 9px; }
+    .dash-activity-tools { display: flex; align-items: center; gap: 8px; }
+    .dash-search { width: 178px; height: 33px; padding: 0 10px; border: 1px solid rgb(255 255 255 / 11%); border-radius: 4px; outline: none; color: #e7e9e2; background: rgb(255 255 255 / 3%); font: 10px 'Outfit', sans-serif; }
+    .dash-search::placeholder { color: #696f65; }
+    .dash-search:focus { border-color: rgb(201 237 145 / 46%); }
+    .dash-filter { height: 33px; padding: 0 9px; border: 1px solid rgb(255 255 255 / 11%); border-radius: 4px; outline: none; color: #abb0a6; background: #131612; font: 9px 'Outfit', sans-serif; }
+    .dash-list { margin-top: 15px; }
+    .dash-row { display: grid; min-height: 58px; grid-template-columns: minmax(180px, 1.4fr) minmax(95px, .75fr) minmax(115px, .8fr) 110px; align-items: center; gap: 10px; border-top: 1px solid rgb(255 255 255 / 7%); }
+    .dash-row.head { min-height: 31px; border-top: 0; color: #6e756a; font-size: 8px; letter-spacing: .9px; text-transform: uppercase; }
+    .dash-transaction { display: flex; min-width: 0; align-items: center; gap: 10px; }
+    .dash-transaction-icon { display: grid; width: 31px; height: 31px; flex: 0 0 31px; place-items: center; border: 1px solid rgb(255 255 255 / 9%); border-radius: 7px; color: #bec5b7; background: rgb(255 255 255 / 3%); font-size: 13px; }
+    .dash-transaction-icon.is-income { border-color: rgb(201 237 145 / 19%); color: var(--accent); background: rgb(201 237 145 / 5%); }
+    .dash-transaction-name { overflow: hidden; color: #dce0d6; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .dash-transaction-sub { margin-top: 3px; color: #747b70; font-size: 8px; }
+    .dash-category, .dash-date { color: #969c90; font-size: 9px; }
+    .dash-amount { color: #e6e9e1; font-size: 10px; text-align: right; white-space: nowrap; }
+    .dash-amount.is-income { color: #c8eaa0; }
+    .dash-empty { padding: 25px 0; color: #888f82; font-size: 11px; text-align: center; }
+    .dash-toast { position: fixed; right: 28px; bottom: 25px; z-index: 120; padding: 12px 16px; border: 1px solid rgb(201 237 145 / 25%); border-radius: 6px; color: #e5f1d4; background: #151b12; box-shadow: 0 12px 35px rgb(0 0 0 / 35%); font-size: 10px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .25s, transform .25s; }
+    .dash-toast.show { opacity: 1; transform: translateY(0); }
+    .tx-modal { position: fixed; inset: 0; z-index: 110; display: none; place-items: center; padding: 20px; background: rgb(0 0 0 / 72%); backdrop-filter: blur(8px); }
+    .tx-modal.open { display: grid; }
+    .tx-form { width: min(420px, 100%); padding: 25px; border: 1px solid rgb(255 255 255 / 13%); border-radius: 9px; background: #11140f; box-shadow: 0 30px 90px rgb(0 0 0 / 55%); }
+    .tx-form-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 21px; }
+    .tx-form-head h2 { color: #eff1e9; font-family: 'Italiana', serif; font-size: 29px; font-weight: 400; }
+    .tx-form-head p { margin-top: 4px; color: #858b80; font-size: 10px; }
+    .tx-close { width: 28px; height: 28px; border: 1px solid rgb(255 255 255 / 12%); border-radius: 50%; color: #aeb4a8; background: transparent; font-size: 17px; line-height: 1; }
+    .tx-field { display: grid; gap: 7px; margin-top: 14px; }
+    .tx-field label { color: #a3a99d; font-size: 9px; letter-spacing: .6px; }
+    .tx-field input, .tx-field select { width: 100%; height: 39px; padding: 0 11px; border: 1px solid rgb(255 255 255 / 12%); border-radius: 4px; outline: none; color: #e5e8df; background: #0a0c09; font: 11px 'Outfit', sans-serif; }
+    .tx-field input:focus, .tx-field select:focus { border-color: rgb(201 237 145 / 52%); }
+    .tx-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .tx-error { min-height: 17px; margin-top: 10px; color: #e1a28b; font-size: 9px; }
+    .tx-submit { width: 100%; margin-top: 3px; }
+
+    .grid-horizontal-line { position: fixed; top: 70px; right: 0; left: 0; z-index: 5; height: 1px; background: var(--line); pointer-events: none; }
+    .grid-lines { position: fixed; top: 0; right: 40px; left: 40px; z-index: 5; display: flex; width: calc(100% - 80px); height: 100vh; justify-content: space-between; pointer-events: none; }
+    .grid-line { position: relative; width: 1px; height: 100%; background: var(--line); }
+    .grid-line:nth-child(3) { height: calc(100vh - 70px); margin-top: 70px; }
+    .grid-dot { position: absolute; left: 50%; width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / 47%); box-shadow: 0 0 7px rgb(255 255 255 / 18%); transform: translate(-50%, -50%); }
+    .story-dashes { position: absolute; top: 50%; left: 50%; display: flex; flex-direction: column; gap: 12px; transform: translate(-50%, -50%); }
+    .story-dash { width: 2px; height: 40px; overflow: hidden; border-radius: 2px; background: rgb(255 255 255 / 20%); }
+    .story-dash-fill { width: 100%; height: 0; border-radius: 2px; background: #fff; transition: height .18s linear; }
+
+    .no-webgl #webgl { display: none; }
+    .no-webgl::before { position: fixed; inset: 0; z-index: 0; content: ''; background: radial-gradient(ellipse at 52% 46%, #172016 0%, #090b08 48%, #000 84%); }
+    @media (max-width: 1100px) {
+      .cinematic-container { padding-right: 36px; padding-left: 36px; }
+      .privacy-note { display: none; }
+      .dash-layout { grid-template-columns: 205px minmax(0, 1fr); }
+      .dash-main { padding-right: 28px; padding-left: 28px; }
+      .dash-row { grid-template-columns: minmax(150px, 1.3fr) minmax(80px, .7fr) minmax(95px, .8fr) 94px; }
+      .slide-image-mask { right: 7vw; width: min(39vw, 420px); min-width: 300px; }
+      #slide-1 .col-1, #slide-1 .col-2 { max-width: 260px; }
+      .slide-desc { font-size: 13px; }
+    }
+    @media (max-width: 760px) {
+      body { min-height: 460vh; }
+      .dash-layout { display: block; }
+      .dash-sidebar { display: none; }
+      .dash-main { padding: 0 22px 45px; }
+      .dash-topbar { min-height: 63px; }
+      .dash-welcome { align-items: flex-start; margin: 34px 0 22px; }
+      .dash-metrics { grid-template-columns: 1fr 1fr; }
+      .dash-balance-card { grid-column: 1 / -1; min-height: 132px; }
+      .dash-stat { min-height: 130px; }
+      .dash-columns { grid-template-columns: 1fr; }
+      .dash-insight-card { min-height: 205px; }
+      .dash-insight-tag { margin-top: 18px; }
+      .dash-row { grid-template-columns: minmax(140px, 1.4fr) 90px 100px; }
+      .dash-row > :nth-child(3) { display: none; }
+      .dash-activity-top { align-items: flex-start; }
+      .dash-activity-tools { flex-wrap: wrap; justify-content: flex-end; }
+      .dash-search { width: 145px; }
+      .cinematic-container { padding: 0 22px 25px; }
+      .main-header { min-height: 65px; gap: 12px; padding: 14px 0; }
+      .brand { font-size: 12px; letter-spacing: 3px; }
+      .header-nav { gap: 11px; }
+      .nav-link { font-size: 8px; letter-spacing: .8px; }
+      .nav-dot { width: 2px; height: 2px; flex-basis: 2px; }
+      .contact-btn { min-height: 34px; gap: 7px; padding: 0 11px; font-size: 8px; }
+      .slide-title { margin-bottom: 14px; font-size: clamp(48px, 9vw, 72px); }
+      #slide-2 .slide-title, #slide-3 .slide-title, #slide-4 .slide-title { font-size: clamp(46px, 8.2vw, 68px); }
+      .slide-desc { max-width: 460px; font-size: 12px; line-height: 1.65; }
+      #slide-1 { bottom: 10%; }
+      #slide-1 .slide-title, #slide-1 .slide-kicker { margin-left: 0; }
+      #slide-1 .desc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 0 2px; }
+      #slide-1 .col-1, #slide-1 .col-2 { position: static; width: auto; max-width: 100%; margin: 0; }
+      #slide-2 { bottom: 9%; left: 0; width: min(92vw, 480px); }
+      #slide-2 .slide-kicker, #slide-2 .slide-title, #slide-2 .slide-desc { margin-left: 0; }
+      #slide-2 .slide-desc { width: min(92vw, 480px); max-width: 480px; }
+      #slide-3 { bottom: 12%; left: 0; width: min(92vw, 560px); }
+      #slide-3 .slide-title { white-space: normal; }
+      #slide-4 { bottom: 11%; left: 0; width: min(92vw, 640px); }
+      .slide-image-mask { top: 14vh; right: 22px; left: 22px; width: auto; min-width: 0; max-width: 440px; margin-left: auto; }
+      .dashboard-card { min-height: 260px; padding: 15px; }
+      .preview-head { padding-bottom: 11px; }
+      .balance-label { margin-top: 13px; }
+      .preview-chart { height: 75px; }
+      .preview-metrics { margin-top: 7px; padding-top: 9px; }
+      .preview-metrics div { gap: 4px; padding-left: 7px; }
+      .preview-metrics strong { font-size: 10px; }
+      .preview-caption { margin-top: 7px; }
+      .grid-lines { right: 20px; left: 20px; width: calc(100% - 40px); }
+      .grid-line:nth-child(2), .grid-line:nth-child(4) { opacity: .55; }
+      .story-dashes { gap: 8px; }
+      .story-dash { height: 28px; }
+    }
+    @media (max-width: 520px) {
+      .cinematic-container { padding-right: 19px; padding-left: 19px; }
+      .header-nav { display: none; }
+      .header-actions { margin-left: auto; }
+      .dash-main { padding: 0 16px 36px; }
+      .dash-topbar { min-height: 58px; }
+      .dash-live { display: none; }
+      .dash-back { min-height: 31px; padding: 0 9px; font-size: 8px; }
+      .dash-welcome { display: block; margin: 29px 0 20px; }
+      .dash-welcome h1 { font-size: 42px; }
+      .dash-welcome p { max-width: 290px; }
+      .dash-welcome .dash-primary { margin-top: 17px; }
+      .dash-metrics { gap: 8px; }
+      .dash-balance-card { min-height: 125px; padding: 16px; }
+      .dash-stat { min-height: 120px; padding: 15px; }
+      .dash-stat strong { font-size: 18px; }
+      .dash-chart-card, .dash-insight-card { padding: 16px; }
+      .dash-activity { padding: 16px 13px 6px; }
+      .dash-activity-top { display: block; }
+      .dash-activity-tools { justify-content: flex-start; margin-top: 14px; }
+      .dash-search { width: min(190px, 56vw); }
+      .dash-filter { flex: 1; min-width: 102px; }
+      .dash-row { grid-template-columns: minmax(120px, 1fr) 87px; gap: 7px; }
+      .dash-row > :nth-child(2) { display: none; }
+      .dash-row.head > :last-child { text-align: right; }
+      .dash-transaction-icon { width: 28px; height: 28px; flex-basis: 28px; }
+      .dash-amount { font-size: 9px; }
+      .tx-form { padding: 20px; }
+      .slide-title { font-size: clamp(46px, 12.5vw, 66px); }
+      #slide-2 .slide-title, #slide-3 .slide-title, #slide-4 .slide-title { font-size: clamp(42px, 11vw, 58px); }
+      #slide-1 { bottom: 9%; }
+      #slide-1 .desc-row { grid-template-columns: 1fr; gap: 8px; }
+      #slide-1 .slide-desc { max-width: 390px; }
+      #slide-2 { bottom: 8%; }
+      #slide-3 { bottom: 11%; }
+      #slide-4 { bottom: 10%; }
+      .slide-image-mask { top: 14vh; right: 19px; left: 19px; }
+      .dashboard-card { min-height: 240px; }
+      .balance-value { font-size: 26px; }
+      .preview-chart { height: 65px; }
+      .slide-desc { max-width: 420px; font-size: 11px; }
+      .slide-kicker { margin-bottom: 9px; font-size: 8px; }
+      .slide-cta { margin-top: 14px; }
+      .cursor-inner, .cursor-outer { display: none; }
+      body, * { cursor: auto !important; }
+    }
+    @media (pointer: coarse) {
+      .cursor-inner, .cursor-outer { display: none; }
+      body, * { cursor: auto !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+      .slide-title .char { filter: none; transform: none; }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="cursor-inner" aria-hidden="true"></div>
+  <div class="cursor-outer" aria-hidden="true"></div>
+
+  <main class="cinematic-container" aria-label="Ledgerly overview">
+    <header class="main-header">
+      <a class="brand" href="#slide-1" aria-label="Ledgerly home">LEDGERLY<span>.</span></a>
+      <nav class="header-nav" aria-label="Story navigation">
+        <a href="#slide-1" class="nav-link">Overview</a><span class="nav-dot" aria-hidden="true"></span>
+        <a href="#slide-2" class="nav-link">Clarity</a><span class="nav-dot" aria-hidden="true"></span>
+        <a href="#slide-3" class="nav-link">Activity</a><span class="nav-dot" aria-hidden="true"></span>
+        <a href="#slide-4" class="nav-link">Next step</a>
+      </nav>
+      <div class="header-actions">
+        <span class="privacy-note"><i></i> A calmer money routine</span>
+        <a class="contact-btn" href="#dashboard" aria-controls="dashboard-view">Open dashboard <span class="btn-circle" aria-hidden="true"></span></a>
+      </div>
+    </header>
+
+    <section class="slide active" id="slide-1" aria-labelledby="title-1">
+      <span class="slide-kicker">A clearer way to handle money</span>
+      <h1 class="slide-title" id="title-1">Give every<br>rupee a direction.</h1>
+      <div class="desc-row">
+        <p class="slide-desc col-1">Know what came in, where it went, and what you can do next.</p>
+        <p class="slide-desc col-2">Your money, all in one calm and clear view.</p>
+      </div>
+    </section>
+
+    <div class="slide-image-mask" id="slide-2-img" aria-label="Illustrative Ledgerly dashboard preview">
+      <div class="dashboard-card">
+        <div class="preview-head">
+          <span class="preview-mark"><b>₹</b> LEDGERLY <span style="color:#55594f">/</span> OVERVIEW</span>
+          <span class="preview-status">● &nbsp;IN VIEW</span>
+        </div>
+        <div class="balance-label">TOTAL BALANCE <em>ILLUSTRATIVE</em></div>
+        <div class="balance-value">₹1,24,860 <span class="balance-change">+8.2%</span></div>
+        <div class="preview-chart" aria-label="Illustrative upward balance trend">
+          <svg viewBox="0 0 520 112" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#c9ed91" stop-opacity=".25"/><stop offset="1" stop-color="#c9ed91" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0 82 C30 78 45 91 75 76 S120 67 140 73 S177 55 204 66 S237 77 265 53 S306 61 334 45 S370 53 397 34 S438 45 463 23 S495 31 520 8 L520 112 L0 112Z" fill="url(#chart-fill)"/>
+            <path d="M0 82 C30 78 45 91 75 76 S120 67 140 73 S177 55 204 66 S237 77 265 53 S306 61 334 45 S370 53 397 34 S438 45 463 23 S495 31 520 8" fill="none" stroke="#c9ed91" stroke-width="2" vector-effect="non-scaling-stroke"/>
+            <path d="M0 37H520M0 72H520" stroke="#ffffff" stroke-opacity=".09" stroke-dasharray="3 6"/>
+          </svg>
+          <div class="chart-labels"><span>JUN</span><span>JUL</span><span>AUG</span><span>SEP</span><span>OCT</span></div>
+        </div>
+        <div class="preview-metrics">
+          <div><span>INCOME</span><strong>₹48,500</strong><small>Across 4 entries</small></div>
+          <div><span>SPENDING</span><strong>₹18,240</strong><small>Across 12 entries</small></div>
+          <div><span>SET ASIDE</span><strong>₹12,600</strong><small>Ready for what’s next</small></div>
+        </div>
+        <div class="preview-caption"><i></i> A preview of your money, made easier to read</div>
+      </div>
+    </div>
+
+    <section class="slide" id="slide-2" aria-labelledby="title-2">
+      <span class="slide-kicker">See it clearly</span>
+      <h2 class="slide-title" id="title-2">One view of<br>your money.</h2>
+      <p class="slide-desc">Income, spending, and what remains sit together, so the picture is easy to understand.</p>
+    </section>
+
+    <section class="slide" id="slide-3" aria-labelledby="title-3">
+      <span class="slide-kicker">Follow the flow</span>
+      <h2 class="slide-title" id="title-3">Know where<br>it goes.</h2>
+      <p class="slide-desc">Find your recent activity, follow useful trends, and spot the patterns that matter.</p>
+    </section>
+
+    <section class="slide" id="slide-4" aria-labelledby="title-4">
+      <span class="slide-kicker">Move with intent</span>
+      <h2 class="slide-title" id="title-4">Make the next<br>step yours.</h2>
+      <p class="slide-desc">Set a goal, keep a buffer, or simply check in. Ledgerly gives you room to decide.</p>
+      <a class="slide-cta" href="#dashboard" aria-controls="dashboard-view">Open your dashboard <span aria-hidden="true">↗</span></a>
+    </section>
+  </main>
+
+  <div class="grid-horizontal-line" aria-hidden="true"></div>
+  <div class="grid-lines" aria-hidden="true">
+    <div class="grid-line"><i class="grid-dot top"></i><i class="grid-dot bottom"></i></div>
+    <div class="grid-line"><i class="grid-dot top"></i><i class="grid-dot bottom"></i></div>
+    <div class="grid-line"><i class="grid-dot top"></i><i class="grid-dot bottom"></i></div>
+    <div class="grid-line"><i class="grid-dot top"></i><i class="grid-dot bottom"></i></div>
+    <div class="grid-line story-progress-container">
+      <i class="grid-dot top"></i><i class="grid-dot bottom"></i>
+      <div class="story-dashes"><div class="story-dash"><div class="story-dash-fill" id="dash-fill-1"></div></div><div class="story-dash"><div class="story-dash-fill" id="dash-fill-2"></div></div><div class="story-dash"><div class="story-dash-fill" id="dash-fill-3"></div></div><div class="story-dash"><div class="story-dash-fill" id="dash-fill-4"></div></div></div>
+    </div>
+  </div>
+  <section class="dashboard-view" id="dashboard-view" aria-label="Ledgerly dashboard" aria-hidden="true">
+    <div class="dash-layout">
+      <aside class="dash-sidebar">
+        <a href="#dashboard" class="dash-brand" aria-label="Ledgerly dashboard"><span class="dash-brand-mark">₹</span> LEDGERLY<span style="color:var(--accent)">.</span></a>
+        <p class="dash-workspace">Your workspace</p>
+        <nav class="dash-side-nav" aria-label="Dashboard navigation">
+          <a class="dash-side-link active" href="#dashboard-overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></svg>Overview</a>
+          <a class="dash-side-link" href="#dashboard-activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="7" cy="6" r="1"/><circle cx="7" cy="12" r="1"/><circle cx="7" cy="18" r="1"/></svg>Transactions</a>
+          <a class="dash-side-link" href="#dashboard-insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V5m0 14h16"/><path d="m7 15 4-4 3 2 5-6"/></svg>Insights</a>
+        </nav>
+        <div class="dash-sidebar-bottom">
+          <div class="dash-side-note"><span>A small reminder</span><p>Clarity grows from the little moments you choose to notice.</p></div>
+          <a class="dash-side-link" href="#story" data-close-dashboard><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 18 9 12l6-6"/><path d="M10 12h10"/></svg>Back to the story</a>
+        </div>
+      </aside>
+      <div class="dash-main">
+        <header class="dash-topbar">
+          <div class="dash-breadcrumb">Workspace <b>/</b> <strong>Overview</strong></div>
+          <div class="dash-top-actions"><span class="dash-live"><i></i> Your overview is up to date</span><button class="dash-back" type="button" data-close-dashboard><span aria-hidden="true">←</span> Back to story</button></div>
+        </header>
+        <main class="dash-content" id="dashboard-overview">
+          <section class="dash-welcome">
+            <div><span class="dash-eyebrow">Your money, at a glance</span><h1>Good to see you.</h1><p>A clear look at what came in, what went out, and what stays yours.</p></div>
+            <button class="dash-primary" type="button" id="open-transaction"><span>+</span> Add transaction</button>
+          </section>
+          <section class="dash-metrics" aria-label="Financial summary">
+            <article class="dash-card dash-balance-card">
+              <span class="dash-card-label">Total balance</span>
+              <strong class="dash-balance-number" id="total-balance">₹84,250</strong>
+              <div class="dash-balance-foot"><i>●</i> Opening balance plus recorded activity</div>
+            </article>
+            <article class="dash-card dash-stat income">
+              <div class="dash-stat-head"><span class="dash-card-label">Income</span><span class="dash-stat-icon" aria-hidden="true">↙</span></div>
+              <strong id="total-income">₹25,000</strong><small id="income-count">1 recorded entry</small>
+            </article>
+            <article class="dash-card dash-stat expenses">
+              <div class="dash-stat-head"><span class="dash-card-label">Spending</span><span class="dash-stat-icon" aria-hidden="true">↗</span></div>
+              <strong id="total-expenses">₹11,410</strong><small id="expense-count">4 recorded entries</small>
+            </article>
+          </section>
+          <section class="dash-columns">
+            <article class="dash-card dash-chart-card">
+              <div class="dash-panel-heading"><div><h2>Cashflow</h2><p>Your recorded activity this month</p></div><span class="dash-period">OCTOBER 2026</span></div>
+              <div class="dash-chart" role="img" aria-label="Illustrative monthly cashflow trend">
+                <svg viewBox="0 0 700 150" preserveAspectRatio="none" aria-hidden="true">
+                  <defs><linearGradient id="dash-chart-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#c9ed91" stop-opacity=".18"/><stop offset="1" stop-color="#c9ed91" stop-opacity="0"/></linearGradient><linearGradient id="dash-chart-line" x1="0" x2="1"><stop offset="0" stop-color="#9ebd73"/><stop offset="1" stop-color="#d6f3a8"/></linearGradient></defs>
+                  <path d="M0 93 C45 86 62 104 102 91 S160 81 195 87 S250 65 292 76 S350 83 385 58 S438 67 475 54 S530 61 567 39 S626 48 655 28 S683 33 700 18 L700 145 L0 145Z" fill="url(#dash-chart-area)"/>
+                  <path d="M0 93 C45 86 62 104 102 91 S160 81 195 87 S250 65 292 76 S350 83 385 58 S438 67 475 54 S530 61 567 39 S626 48 655 28 S683 33 700 18" fill="none" stroke="url(#dash-chart-line)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                  <path d="M0 35H700M0 72H700M0 109H700" stroke="#fff" stroke-opacity=".075" stroke-dasharray="3 7"/>
+                  <circle cx="567" cy="39" r="4" fill="#c9ed91"/><circle cx="567" cy="39" r="9" fill="#c9ed91" fill-opacity=".12"/>
+                </svg>
+                <div class="dash-chart-labels"><span>01 OCT</span><span>05 OCT</span><span>10 OCT</span><span>15 OCT</span><span>20 OCT</span><span>25 OCT</span><span>31 OCT</span></div>
+              </div>
+              <div class="dash-chart-legend"><span><i></i> Balance</span><span><i></i> Activity</span></div>
+            </article>
+            <article class="dash-card dash-insight-card" id="dashboard-insights">
+              <div class="dash-panel-heading"><div><h2>Financial pulse</h2><p>A quiet check-in on your month</p></div><span aria-hidden="true" style="color:var(--accent);font-size:16px">↗</span></div>
+              <span class="dash-insight-tag">ROOM TO BREATHE</span>
+              <h3 id="insight-heading">You’re keeping more than you spend.</h3>
+              <p id="insight-copy">Your recorded income is ahead of spending this month. Keep going at a pace that feels right.</p>
+            </article>
+          </section>
+          <section class="dash-card dash-activity" id="dashboard-activity">
+            <div class="dash-activity-top">
+              <div><h2>Recent activity</h2><p id="activity-caption">A clear trail of where your money moves.</p></div>
+              <div class="dash-activity-tools">
+                <input class="dash-search" id="transaction-search" type="search" placeholder="Search activity" aria-label="Search transactions">
+                <select class="dash-filter" id="transaction-filter" aria-label="Filter transactions"><option value="all">All activity</option><option value="income">Money in</option><option value="expense">Money out</option></select>
+              </div>
+            </div>
+            <div class="dash-list" id="transaction-list" aria-live="polite"></div>
+          </section>
+        </main>
+      </div>
+    </div>
+    <div class="tx-modal" id="transaction-modal" aria-hidden="true">
+      <form class="tx-form" id="transaction-form" aria-labelledby="transaction-form-title">
+        <div class="tx-form-head"><div><h2 id="transaction-form-title">Add a transaction</h2><p>Keep your money picture up to date.</p></div><button type="button" class="tx-close" id="close-transaction" aria-label="Close form">×</button></div>
+        <div class="tx-field"><label for="transaction-name">DESCRIPTION</label><input id="transaction-name" name="name" type="text" maxlength="70" placeholder="e.g. Weekly groceries" required></div>
+        <div class="tx-form-row">
+          <div class="tx-field"><label for="transaction-amount">AMOUNT (₹)</label><input id="transaction-amount" name="amount" type="number" min="1" step="1" placeholder="0" required></div>
+          <div class="tx-field"><label for="transaction-type">TYPE</label><select id="transaction-type" name="type"><option value="expense">Money out</option><option value="income">Money in</option></select></div>
+        </div>
+        <div class="tx-field" id="category-field"><label for="transaction-category">CATEGORY</label><select id="transaction-category" name="category"><option>Food &amp; dining</option><option>Housing</option><option>Transport</option><option>Shopping</option><option>Health</option><option>Other</option></select></div>
+        <div class="tx-error" id="transaction-error" role="alert"></div>
+        <button type="submit" class="dash-primary tx-submit">Save transaction</button>
+      </form>
+    </div>
+    <div class="dash-toast" id="dashboard-toast" role="status" aria-live="polite"></div>
+  </section>
+  <canvas id="webgl" aria-hidden="true"></canvas>
+
+  <script type="module">
+    const THREE_MODULE_URL = 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    const GLTF_LOADER_URL = 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+    const THREE = await import(/* @vite-ignore */ THREE_MODULE_URL);
+    const { GLTFLoader } = await import(/* @vite-ignore */ GLTF_LOADER_URL);
+
+    // Kept available for product art in GLTF format; the scene below is built in code so
+    // the standalone page has no unrelated external sculpture or missing asset dependency.
+    const gltfLoader = new GLTFLoader();
+    void gltfLoader;
+
+    const canvas = document.querySelector('#webgl');
+    let scene, camera, renderer, modelPivot, sparkParticles, coinCurrency;
+    const clock = new THREE.Clock();
+    let currentScroll = 0;
+    let mouseX = 0, mouseY = 0, targetMouseX = 0, targetMouseY = 0;
+    let cursorX = window.innerWidth / 2, cursorY = window.innerHeight / 2;
+    let outerCursorX = cursorX, outerCursorY = cursorY;
+    let bgMaterial;
+    const shaderUniforms = {
+      uTime: { value: 0 },
+      uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      uMouse: { value: new THREE.Vector2(0, 0) },
+      uScroll: { value: 0 }
+    };
+    const sparkCount = 450;
+    const sparkData = [];
+    const sizes = { width: window.innerWidth, height: window.innerHeight };
+
+    function createBackgroundShader() {
+      const vertexShader = `
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+      `;
+      const fragmentShader = `
+        varying vec2 vUv;
+        uniform float uTime;
+        uniform vec2 uResolution;
+        uniform vec2 uMouse;
+        uniform float uScroll;
+        float hash(float n) { return fract(sin(n) * 43758.5453123); }
+        float noise(in vec3 x) {
+          vec3 p = floor(x); vec3 f = fract(x); f = f*f*(3.0-2.0*f);
+          float n = p.x + p.y*57.0 + 113.0*p.z;
+          return mix(mix(mix(hash(n), hash(n+1.0), f.x), mix(hash(n+57.0), hash(n+58.0), f.x), f.y),
+                     mix(mix(hash(n+113.0), hash(n+114.0), f.x), mix(hash(n+170.0), hash(n+171.0), f.x), f.y), f.z);
+        }
+        void main() {
+          vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / uResolution.y;
+          float aspect = uResolution.x / uResolution.y;
+          float time = uTime * 0.08;
+          float scroll = uScroll;
+          float angle1 = 0.6, angle2 = -0.7, angle3 = 1.2;
+          float freq1 = 2.4, freq2 = 3.2, freq3 = 4.0;
+          vec2 warpedUv = uv;
+          float scrollDeform = scroll * 5.0;
+          warpedUv.x += sin(uv.y * 2.5 + time * 0.2 + scrollDeform) * 0.35;
+          warpedUv.y += cos(uv.x * 2.5 - time * 0.15 - scrollDeform * 0.8) * 0.35;
+          warpedUv.x += sin(uv.y * 1.2 - time * 0.1 - scrollDeform * 1.5) * 0.25;
+          warpedUv.y += cos(uv.x * 1.2 + time * 0.18 + scrollDeform * 1.2) * 0.25;
+          vec2 scrollDrift = vec2(scroll * 0.04, -scroll * 0.02);
+          vec2 mouseShift = vec2(uMouse.x * aspect * 0.05, uMouse.y * 0.05);
+          warpedUv += scrollDrift + mouseShift;
+          vec2 dir1 = vec2(cos(angle1), sin(angle1));
+          vec2 dir2 = vec2(cos(angle2), sin(angle2));
+          vec2 dir3 = vec2(cos(angle3), sin(angle3));
+          float w1 = sin(dot(warpedUv, dir1) * freq1 + time);
+          float w2 = cos(dot(warpedUv, dir2) * freq2 - time * 1.4 + w1 * 0.4);
+          float w3 = sin(dot(warpedUv, dir3) * freq3 + time * 1.8 + w2 * 0.5);
+          float waveField = w1 * 0.50 + w2 * 0.35 + w3 * 0.15;
+          float wideSheen = pow(max(0.0, 1.0 - abs(waveField - 0.1)), 2.5);
+          float crispSpecular = pow(max(0.0, 1.0 - abs(waveField - 0.15)), 8.0);
+          float crest = wideSheen * 0.5 + crispSpecular * 0.9;
+          vec3 c0_shadow = vec3(0.0010, 0.0012, 0.0008);
+          vec3 c0_wave1 = vec3(0.025, 0.034, 0.013);
+          vec3 c0_wave2 = vec3(0.013, 0.019, 0.008);
+          vec3 c0_crest = vec3(0.14, 0.19, 0.10);
+          vec3 c1_shadow = vec3(0.0004, 0.0008, 0.0010);
+          vec3 c1_wave1 = vec3(0.008, 0.022, 0.028);
+          vec3 c1_wave2 = vec3(0.004, 0.013, 0.017);
+          vec3 c1_crest = vec3(0.08, 0.18, 0.20);
+          float t = smoothstep(0.0, 1.0, scroll);
+          vec3 colShadow = mix(c0_shadow, c1_shadow, t);
+          vec3 colWave1 = mix(c0_wave1, c1_wave1, t);
+          vec3 colWave2 = mix(c0_wave2, c1_wave2, t);
+          vec3 colCrest = mix(c0_crest, c1_crest, t);
+          vec3 color = colShadow;
+          color = mix(color, colWave2, smoothstep(-0.6, 0.2, waveField));
+          color = mix(color, colWave1, smoothstep(0.0, 0.8, waveField));
+          color += colCrest * crest * 0.9;
+          float vignette = 1.0 - dot(uv, uv) * 0.12;
+          color *= vignette;
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `;
+      bgMaterial = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms: shaderUniforms, depthWrite: false, depthTest: false });
+      const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), bgMaterial);
+      bgMesh.position.set(0, 0, -8);
+      bgMesh.renderOrder = -10;
+      camera.add(bgMesh);
+    }
+
+    function createSparkTexture() {
+      const sparkCanvas = document.createElement('canvas');
+      sparkCanvas.width = sparkCanvas.height = 16;
+      const ctx = sparkCanvas.getContext('2d');
+      const gradient = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
+      gradient.addColorStop(0, 'rgba(255,255,255,1)');
+      gradient.addColorStop(.25, 'rgba(255,255,255,.85)');
+      gradient.addColorStop(.6, 'rgba(255,255,255,.3)');
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 16, 16);
+      return new THREE.CanvasTexture(sparkCanvas);
+    }
+
+    function createSparks() {
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(sparkCount * 3);
+      const colors = new Float32Array(sparkCount * 3);
+      for (let i = 0; i < sparkCount; i++) {
+        positions[i * 3] = (Math.random() - .5) * 6.5;
+        positions[i * 3 + 1] = (Math.random() - .5) * 5 - .5;
+        positions[i * 3 + 2] = (Math.random() - .5) * 6.5;
+        if (Math.random() < .6) {
+          colors[i * 3] = .66 + Math.random() * .2;
+          colors[i * 3 + 1] = .88 + Math.random() * .12;
+          colors[i * 3 + 2] = .44 + Math.random() * .18;
+        } else {
+          colors[i * 3] = 1;
+          colors[i * 3 + 1] = .54 + Math.random() * .19;
+          colors[i * 3 + 2] = .18 + Math.random() * .14;
+        }
+        sparkData.push({ speedX: (Math.random() - .5) * .4, speedY: .15 + Math.random() * .3, speedZ: (Math.random() - .5) * .4, swaySpeed: .5 + Math.random() * 1.5, swayRadius: .05 + Math.random() * .15, phase: Math.random() * Math.PI * 2 });
+      }
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      sparkParticles = new THREE.Points(geometry, new THREE.PointsMaterial({ size: .025, vertexColors: true, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false, map: createSparkTexture() }));
+      scene.add(sparkParticles);
+    }
+
+    function makeCoinTexture() {
+      const face = document.createElement('canvas');
+      face.width = face.height = 1536;
+      const ctx = face.getContext('2d');
+      const center = 768;
+      ctx.clearRect(0, 0, face.width, face.height);
+      const bronzeWash = ctx.createRadialGradient(590, 485, 20, center, center, 940);
+      bronzeWash.addColorStop(0, '#d9bd78');
+      bronzeWash.addColorStop(.34, '#a78343');
+      bronzeWash.addColorStop(.72, '#654a27');
+      bronzeWash.addColorStop(1, '#342a1b');
+      ctx.fillStyle = bronzeWash;
+      ctx.fillRect(0, 0, face.width, face.height);
+      const sheen = ctx.createLinearGradient(190, 250, 1270, 1320);
+      sheen.addColorStop(0, 'rgba(255,246,205,.24)');
+      sheen.addColorStop(.38, 'rgba(255,246,205,0)');
+      sheen.addColorStop(1, 'rgba(17,13,7,.26)');
+      ctx.fillStyle = sheen;
+      ctx.fillRect(0, 0, face.width, face.height);
+      ctx.lineWidth = 3;
+      [108, 138, 592, 625, 663, 704].forEach((radius, index) => {
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = index < 2 ? 'rgba(255,239,187,.54)' : 'rgba(255,230,164,.28)';
+        ctx.lineWidth = index === 2 || index === 5 ? 5 : 2;
+        ctx.stroke();
+      });
+      for (let i = 0; i < 120; i++) {
+        const angle = (i / 120) * Math.PI * 2;
+        const inner = i % 5 === 0 ? 675 : 687;
+        const outer = i % 5 === 0 ? 720 : 704;
+        ctx.beginPath();
+        ctx.moveTo(center + Math.cos(angle) * inner, center + Math.sin(angle) * inner);
+        ctx.lineTo(center + Math.cos(angle) * outer, center + Math.sin(angle) * outer);
+        ctx.strokeStyle = i % 5 === 0 ? 'rgba(255,237,183,.58)' : 'rgba(255,237,183,.29)';
+        ctx.lineWidth = i % 5 === 0 ? 3 : 1.5;
+        ctx.stroke();
+      }
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '600 42px Arial, sans-serif';
+      ctx.letterSpacing = '12px';
+      ctx.fillText('LEDGERLY', center, 1150);
+      const texture = new THREE.CanvasTexture(face);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.generateMipmaps = true;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.anisotropy = renderer ? Math.min(renderer.capabilities.getMaxAnisotropy(), 16) : 1;
+      return texture;
+    }
+
+    function makeCurrencyTexture(symbol) {
+      const art = document.createElement('canvas');
+      art.width = art.height = 768;
+      const ctx = art.getContext('2d');
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '600 560px Outfit, Arial, sans-serif';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = 'rgba(49,31,12,.55)';
+      ctx.shadowColor = 'rgba(39,24,8,.34)';
+      ctx.shadowBlur = 7;
+      ctx.shadowOffsetY = 3;
+      ctx.strokeText(symbol, 384, 391);
+      ctx.shadowColor = 'rgba(255,241,191,.34)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = -1;
+      ctx.fillStyle = '#fff0c4';
+      ctx.fillText(symbol, 384, 384);
+      const texture = new THREE.CanvasTexture(art);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.generateMipmaps = true;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.anisotropy = renderer ? Math.min(renderer.capabilities.getMaxAnisotropy(), 16) : 1;
+      return texture;
+    }
+
+    function createCoinScene() {
+      modelPivot = new THREE.Group();
+      frameCoin();
+      camera.add(modelPivot);
+      modelPivot.position.set(1.48, .62, -4.2);
+      const edge = new THREE.MeshStandardMaterial({ color: '#60451f', metalness: .9, roughness: .34 });
+      const coin = new THREE.Mesh(new THREE.CylinderGeometry(1.03, 1.03, .16, 160, 2), [edge, edge, edge]);
+      coin.rotation.x = Math.PI / 2;
+      modelPivot.add(coin);
+      const faceTexture = makeCoinTexture();
+      // The 1536px canvas contains the face's metallic shading and engravings. Keep
+      // that detail stable as the camera orbits; the raised rim carries the live light.
+      const faceMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', map: faceTexture, toneMapped: false, side: THREE.DoubleSide });
+      const face = new THREE.Mesh(new THREE.CircleGeometry(.985, 192), faceMaterial);
+      face.position.z = .082;
+      modelPivot.add(face);
+      const reverseFace = new THREE.Mesh(new THREE.CircleGeometry(.985, 192), faceMaterial);
+      reverseFace.rotation.y = Math.PI;
+      reverseFace.position.z = -.082;
+      modelPivot.add(reverseFace);
+      const currencySymbols = ['₹', '$', '€', '£', '¥'];
+      const currencyTextures = currencySymbols.map(makeCurrencyTexture);
+      const symbolGeometry = new THREE.PlaneGeometry(.92, .92);
+      const symbolSlots = currencyTextures.slice(0, 2).map((texture, index) => {
+        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: index === 0 ? 1 : 0, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+        const symbol = new THREE.Mesh(symbolGeometry, material);
+        symbol.position.z = .088;
+        symbol.renderOrder = 10;
+        modelPivot.add(symbol);
+        return symbol;
+      });
+      coinCurrency = { symbols: currencySymbols, textures: currencyTextures, slots: symbolSlots, activeSlot: 0, index: 0, elapsed: 0, transitionElapsed: 0, nextIndex: 1, transitioning: false };
+      const rimMat = new THREE.MeshStandardMaterial({ color: '#b7924e', metalness: .9, roughness: .34, emissive: '#171106', emissiveIntensity: .08 });
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(.99, .016, 16, 256), rimMat);
+      modelPivot.add(rim);
+      const outerOrbit = new THREE.Mesh(new THREE.TorusGeometry(1.48, .008, 10, 256), new THREE.MeshBasicMaterial({ color: '#a9c783', transparent: true, opacity: .45 }));
+      outerOrbit.rotation.set(.3, .12, -.22);
+      modelPivot.add(outerOrbit);
+      const innerOrbit = new THREE.Mesh(new THREE.TorusGeometry(1.28, .006, 10, 256), new THREE.MeshBasicMaterial({ color: '#d1a95e', transparent: true, opacity: .36 }));
+      innerOrbit.rotation.set(-.18, .55, .28);
+      modelPivot.add(innerOrbit);
+      const beadGeo = new THREE.SphereGeometry(.035, 12, 12);
+      const beadMat = new THREE.MeshBasicMaterial({ color: '#d9f2af' });
+      const bead = new THREE.Mesh(beadGeo, beadMat);
+      bead.position.set(1.42, .15, .28);
+      modelPivot.add(bead);
+      const halo = new THREE.PointLight('#c5e99a', .07, 3.8);
+      halo.position.set(.5, .4, 1.4);
+      modelPivot.add(halo);
+    }
+
+    function updateCoinCurrency(deltaTime) {
+      if (!coinCurrency) return;
+      const state = coinCurrency;
+      if (!state.transitioning) {
+        state.elapsed += deltaTime;
+        if (state.elapsed >= 1.9) {
+          state.elapsed = 0;
+          state.nextIndex = (state.index + 1) % state.symbols.length;
+          const nextSlot = 1 - state.activeSlot;
+          state.slots[nextSlot].material.map = state.textures[state.nextIndex];
+          state.slots[nextSlot].material.opacity = 0;
+          state.transitionElapsed = 0;
+          state.transitioning = true;
+        }
+      } else {
+        state.transitionElapsed += deltaTime;
+        const progress = Math.min(1, state.transitionElapsed / .72);
+        const nextSlot = 1 - state.activeSlot;
+        if (progress < .5) {
+          state.slots[state.activeSlot].material.opacity = 1 - smoothProgress(progress, 0, .5);
+          state.slots[nextSlot].material.opacity = 0;
+        } else {
+          state.slots[state.activeSlot].material.opacity = 0;
+          state.slots[nextSlot].material.opacity = smoothProgress(progress, .5, 1);
+        }
+        if (progress >= 1) {
+          state.slots[state.activeSlot].material.opacity = 0;
+          state.activeSlot = 1 - state.activeSlot;
+          state.slots[state.activeSlot].material.opacity = 1;
+          state.index = state.nextIndex;
+          state.transitioning = false;
+          state.elapsed = 0;
+        }
+      }
+    }
+
+    function smoothProgress(value, start, end) {
+      const t = THREE.MathUtils.clamp((value - start) / (end - start), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    function frameCoin() {
+      if (!modelPivot) return;
+      const width = window.innerWidth;
+      const scale = width < 520 ? .32 : width < 760 ? .37 : width < 1100 ? .44 : .52;
+      modelPivot.userData.baseScale = scale;
+      modelPivot.scale.setScalar(scale);
+    }
+
+    function createScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#000000');
+      scene.fog = new THREE.FogExp2('#000000', .01);
+      camera = new THREE.PerspectiveCamera(50, sizes.width / sizes.height, .1, 100);
+      camera.position.set(0, .2, 3);
+      scene.add(camera);
+      createBackgroundShader();
+      try {
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+        renderer.setSize(sizes.width, sizes.height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.3;
+      } catch (error) {
+        document.body.classList.add('no-webgl');
+        throw error;
+      }
+      scene.add(new THREE.AmbientLight('#ffffff', .1));
+      const keyLight = new THREE.SpotLight('#ffffff', 2.8);
+      keyLight.position.set(4, 6, 3);
+      keyLight.angle = Math.PI / 4;
+      keyLight.penumbra = .9;
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.width = 2048;
+      keyLight.shadow.mapSize.height = 2048;
+      keyLight.shadow.camera.near = 1;
+      keyLight.shadow.camera.far = 15;
+      keyLight.shadow.bias = -.001;
+      scene.add(keyLight);
+      const rimLight = new THREE.DirectionalLight('#e3f2ff', 1.8);
+      rimLight.position.set(-5, 3, -4);
+      scene.add(rimLight);
+      const fillLight = new THREE.DirectionalLight('#fff3e6', .8);
+      fillLight.position.set(-2, -4, 2);
+      scene.add(fillLight);
+      createSparks();
+      createCoinScene();
+    }
+
+    function splitTitlesIntoChars() {
+      document.querySelectorAll('.slide-title').forEach(title => {
+        const parts = title.innerHTML.split(/(<br\s*\/?>)/i);
+        let newHTML = '';
+        let delayCounter = 0;
+        parts.forEach(part => {
+          if (part.toLowerCase().startsWith('<br')) newHTML += part;
+          else {
+            for (let i = 0; i < part.length; i++) {
+              if (part[i] === ' ') newHTML += ' ';
+              else newHTML += `<span class="char" style="transition-delay:${delayCounter++ * .035}s">${part[i]}</span>`;
+            }
+          }
+        });
+        title.innerHTML = newHTML;
+        title.querySelectorAll('.char').forEach((char, index) => {
+          char.style.transitionDelay = (index * .02) + 's';
+        });
+      });
+    }
+
+    function onWindowResize() {
+      if (!renderer || !camera) return;
+      sizes.width = window.innerWidth;
+      sizes.height = window.innerHeight;
+      camera.aspect = sizes.width / sizes.height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(sizes.width, sizes.height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      shaderUniforms.uResolution.value.set(sizes.width, sizes.height);
+      frameCoin();
+    }
+
+    function updateGridDots(scroll) {
+      document.querySelectorAll('.grid-dot').forEach((dot, i) => {
+        const startY = (i * 17) % 80 + 10;
+        let speed = 90 + (i * 55) % 180;
+        if (i % 2 === 0) speed = -speed;
+        let y = startY + scroll * speed;
+        y = ((y % 100) + 100) % 100;
+        dot.style.top = `${y}%`;
+      });
+    }
+
+    function updateSlides(scroll) {
+      for (let i = 1; i <= 4; i++) {
+        const fill = document.getElementById(`dash-fill-${i}`);
+        const start = (i - 1) * .25;
+        const end = i * .25;
+        const progress = Math.max(0, Math.min(1, (scroll - start) / (end - start)));
+        if (fill) fill.style.height = `${progress * 100}%`;
+      }
+      const activeRanges = [[-.1, .12], [.28, .4], [.56, .68], [.84, 1.05]];
+      activeRanges.forEach(([start, end], index) => {
+        document.getElementById(`slide-${index + 1}`).classList.toggle('active', scroll >= start && scroll <= end);
+      });
+      document.getElementById('slide-2-img').classList.toggle('active', scroll >= .28 && scroll <= .4);
+    }
+
+    const openingBalance = 70660;
+    const defaultTransactions = [
+      { id: 'demo-0', name: 'Monthly stipend', category: 'Income', date: 'Oct 16, 2026', dateISO: '2026-10-16', amount: 25000, type: 'income' },
+      { id: 'demo-1', name: 'Apartment rent', category: 'Housing', date: 'Oct 15, 2026', dateISO: '2026-10-15', amount: -8500, type: 'expense' },
+      { id: 'demo-2', name: 'Groceries', category: 'Food & dining', date: 'Oct 14, 2026', dateISO: '2026-10-14', amount: -1850, type: 'expense' },
+      { id: 'demo-3', name: 'Uber ride', category: 'Transport', date: 'Oct 13, 2026', dateISO: '2026-10-13', amount: -320, type: 'expense' },
+      { id: 'demo-4', name: 'Dinner with friends', category: 'Food & dining', date: 'Oct 12, 2026', dateISO: '2026-10-12', amount: -740, type: 'expense' }
+    ];
+    let transactions = readTransactions();
+    let storyScrollY = 0;
+    let toastTimer = 0;
+
+    function readTransactions() {
+      try {
+        const saved = localStorage.getItem('ledgerly.transactions.v1');
+        if (saved) {
+          const items = JSON.parse(saved);
+          if (Array.isArray(items)) {
+            return items.map((item, index) => {
+              const rawAmount = Number(item.amount) || 0;
+              const type = item.type || (rawAmount >= 0 ? 'income' : 'expense');
+              const amount = Math.abs(rawAmount) * (type === 'income' ? 1 : -1);
+              return {
+                id: String(item.id || 'stored-' + index),
+                name: String(item.name || item.description || 'Transaction'),
+                category: type === 'income' ? 'Income' : String(item.category || 'Other'),
+                date: String(item.date || item.dateISO || 'Recent'),
+                dateISO: item.dateISO || '',
+                amount,
+                type
+              };
+            });
+          }
+        }
+      } catch (error) {
+        console.info('Using Ledgerly sample activity because saved data could not be read.', error);
+      }
+      return defaultTransactions.map(item => ({ ...item }));
+    }
+
+    function formatMoney(amount) {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+    }
+
+    function transactionDateLabel(item) {
+      if (!item.dateISO) return item.date;
+      const parts = item.dateISO.split('-').map(Number);
+      if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return item.date;
+      return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(new Date(parts[0], parts[1] - 1, parts[2], 12));
+    }
+
+    function renderDashboard() {
+      const incomeItems = transactions.filter(item => item.type === 'income');
+      const expenseItems = transactions.filter(item => item.type !== 'income');
+      const income = incomeItems.reduce((sum, item) => sum + Math.abs(item.amount), 0);
+      const expenses = expenseItems.reduce((sum, item) => sum + Math.abs(item.amount), 0);
+      document.getElementById('total-balance').textContent = formatMoney(openingBalance + income - expenses);
+      document.getElementById('total-income').textContent = formatMoney(income);
+      document.getElementById('total-expenses').textContent = formatMoney(expenses);
+      document.getElementById('income-count').textContent = incomeItems.length + (incomeItems.length === 1 ? ' recorded entry' : ' recorded entries');
+      document.getElementById('expense-count').textContent = expenseItems.length + (expenseItems.length === 1 ? ' recorded entry' : ' recorded entries');
+      document.getElementById('activity-caption').textContent = transactions.length + (transactions.length === 1 ? ' recorded entry.' : ' recorded entries, newest first.');
+
+      const heading = document.getElementById('insight-heading');
+      const copy = document.getElementById('insight-copy');
+      if (income >= expenses) {
+        heading.textContent = 'You’re keeping more than you spend.';
+        copy.textContent = 'Your recorded income is ahead of spending this month. Keep going at a pace that feels right.';
+      } else {
+        heading.textContent = 'A little clarity goes a long way.';
+        copy.textContent = 'Your recent spending is ahead of income. Take a closer look at the activity and choose your next step.';
+      }
+      renderTransactionList();
+    }
+
+    function renderTransactionList() {
+      const list = document.getElementById('transaction-list');
+      const search = document.getElementById('transaction-search').value.trim().toLowerCase();
+      const filter = document.getElementById('transaction-filter').value;
+      const filtered = transactions.filter(item => {
+        const matchesType = filter === 'all' || item.type === filter;
+        const matchesSearch = !search || (item.name + ' ' + item.category + ' ' + item.date).toLowerCase().includes(search);
+        return matchesType && matchesSearch;
+      });
+      list.replaceChildren();
+      const headings = document.createElement('div');
+      headings.className = 'dash-row head';
+      ['DESCRIPTION', 'CATEGORY', 'DATE', 'AMOUNT'].forEach(label => {
+        const cell = document.createElement('span');
+        cell.textContent = label;
+        headings.appendChild(cell);
+      });
+      list.appendChild(headings);
+      if (!filtered.length) {
+        const empty = document.createElement('p');
+        empty.className = 'dash-empty';
+        empty.textContent = transactions.length ? 'No activity matches this search.' : 'No transactions yet. Add one to get started.';
+        list.appendChild(empty);
+        return;
+      }
+      filtered.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'dash-row';
+        const description = document.createElement('div');
+        description.className = 'dash-transaction';
+        const icon = document.createElement('span');
+        icon.className = 'dash-transaction-icon' + (item.type === 'income' ? ' is-income' : '');
+        icon.textContent = item.type === 'income' ? '↙' : (item.category === 'Housing' ? '⌂' : item.category === 'Transport' ? '↗' : item.category === 'Shopping' ? '◇' : '•');
+        icon.setAttribute('aria-hidden', 'true');
+        const nameWrap = document.createElement('div');
+        nameWrap.style.minWidth = '0';
+        const name = document.createElement('div');
+        name.className = 'dash-transaction-name';
+        name.textContent = item.name;
+        const subtitle = document.createElement('div');
+        subtitle.className = 'dash-transaction-sub';
+        subtitle.textContent = item.type === 'income' ? 'Money in' : 'Money out';
+        nameWrap.append(name, subtitle);
+        description.append(icon, nameWrap);
+        const category = document.createElement('span');
+        category.className = 'dash-category';
+        category.textContent = item.category;
+        const date = document.createElement('span');
+        date.className = 'dash-date';
+        date.textContent = transactionDateLabel(item);
+        const amount = document.createElement('strong');
+        amount.className = 'dash-amount' + (item.type === 'income' ? ' is-income' : '');
+        amount.textContent = (item.type === 'income' ? '+' : '−') + formatMoney(Math.abs(item.amount));
+        row.append(description, category, date, amount);
+        list.appendChild(row);
+      });
+    }
+
+    function openDashboard(addHistory) {
+      const view = document.getElementById('dashboard-view');
+      if (!document.body.classList.contains('dashboard-open')) storyScrollY = window.scrollY;
+      document.body.classList.add('dashboard-open');
+      view.classList.add('open');
+      view.setAttribute('aria-hidden', 'false');
+      renderDashboard();
+      if (addHistory && window.location.hash !== '#dashboard') history.pushState({ dashboard: true }, '', '#dashboard');
+      window.scrollTo(0, 0);
+      document.getElementById('dashboard-close').focus({ preventScroll: true });
+    }
+
+    function closeDashboard(updateHistory) {
+      const view = document.getElementById('dashboard-view');
+      if (!document.body.classList.contains('dashboard-open')) return;
+      closeTransactionModal();
+      view.classList.remove('open');
+      view.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('dashboard-open');
+      if (updateHistory && window.location.hash === '#dashboard') history.replaceState({}, '', window.location.pathname + window.location.search);
+      window.scrollTo(0, storyScrollY);
+      document.querySelector('.contact-btn').focus({ preventScroll: true });
+    }
+
+    function showDashboardToast(message) {
+      const toast = document.getElementById('dashboard-toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    function openTransactionModal() {
+      const modal = document.getElementById('transaction-modal');
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.getElementById('transaction-error').textContent = '';
+      document.getElementById('transaction-name').focus();
+    }
+
+    function closeTransactionModal() {
+      const modal = document.getElementById('transaction-modal');
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function setupDashboard() {
+      const closeButton = document.querySelector('.dash-top-actions .dash-back');
+      closeButton.id = 'dashboard-close';
+      document.querySelectorAll('.contact-btn, .slide-cta').forEach(link => link.addEventListener('click', event => {
+        event.preventDefault();
+        openDashboard(true);
+      }));
+      document.querySelectorAll('[data-close-dashboard]').forEach(link => link.addEventListener('click', event => {
+        event.preventDefault();
+        closeDashboard(true);
+      }));
+      document.querySelectorAll('.dash-side-link[href^="#dashboard-"]').forEach(link => link.addEventListener('click', event => {
+        event.preventDefault();
+        document.querySelectorAll('.dash-side-link').forEach(item => item.classList.remove('active'));
+        link.classList.add('active');
+        document.getElementById(link.getAttribute('href').slice(1)).scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }));
+      document.getElementById('open-transaction').addEventListener('click', openTransactionModal);
+      document.getElementById('close-transaction').addEventListener('click', closeTransactionModal);
+      document.getElementById('transaction-modal').addEventListener('click', event => {
+        if (event.target.id === 'transaction-modal') closeTransactionModal();
+      });
+      document.getElementById('transaction-search').addEventListener('input', renderTransactionList);
+      document.getElementById('transaction-filter').addEventListener('change', renderTransactionList);
+      document.getElementById('transaction-type').addEventListener('change', event => {
+        document.getElementById('category-field').style.display = event.target.value === 'income' ? 'none' : 'grid';
+      });
+      document.getElementById('transaction-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const name = String(form.get('name') || '').trim();
+        const amount = Number(form.get('amount'));
+        if (!name || !Number.isFinite(amount) || amount <= 0) {
+          document.getElementById('transaction-error').textContent = 'Enter a description and an amount greater than zero.';
+          return;
+        }
+        const type = String(form.get('type'));
+        const now = new Date();
+        const dateISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        transactions.unshift({
+          id: 'tx-' + Date.now(),
+          name,
+          category: type === 'income' ? 'Income' : String(form.get('category')),
+          date: new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(now),
+          dateISO,
+          amount: type === 'income' ? amount : -amount,
+          type
+        });
+        try {
+          localStorage.setItem('ledgerly.transactions.v1', JSON.stringify(transactions));
+        } catch (error) {
+          console.info('This browser session does not allow saving activity.', error);
+        }
+        event.currentTarget.reset();
+        document.getElementById('category-field').style.display = 'grid';
+        closeTransactionModal();
+        renderDashboard();
+        showDashboardToast('Transaction saved to your activity.');
+      });
+      window.addEventListener('popstate', () => {
+        if (window.location.hash === '#dashboard') openDashboard(false);
+        else closeDashboard(false);
+      });
+      window.addEventListener('hashchange', () => {
+        if (window.location.hash === '#dashboard') openDashboard(false);
+        else if (document.body.classList.contains('dashboard-open')) closeDashboard(false);
+      });
+      window.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          if (document.getElementById('transaction-modal').classList.contains('open')) closeTransactionModal();
+          else closeDashboard(true);
+        }
+      });
+      renderDashboard();
+      if (window.location.hash === '#dashboard') openDashboard(false);
+    }
+
+    function setupNavigation() {
+      const targetScrolls = [0, .34, .62, .94];
+      document.querySelectorAll('.nav-link, .brand').forEach(link => {
+        link.addEventListener('click', event => {
+          const match = link.getAttribute('href')?.match(/slide-(\d)/);
+          if (!match) return;
+          event.preventDefault();
+          const slideIndex = Number(match[1]);
+          const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+          window.scrollTo({ top: maxScroll * targetScrolls[slideIndex - 1], behavior: 'smooth' });
+        });
+      });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (!renderer) return;
+      const deltaTime = clock.getDelta();
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const scrollTop = window.scrollY !== undefined ? window.scrollY : (window.pageYOffset || document.documentElement.scrollTop);
+      const targetScroll = maxScroll > 0 ? scrollTop / maxScroll : 0;
+      currentScroll += (targetScroll - currentScroll) * .11;
+      mouseX += (targetMouseX - mouseX) * .05;
+      mouseY += (targetMouseY - mouseY) * .05;
+      outerCursorX += (cursorX - outerCursorX) * .2;
+      outerCursorY += (cursorY - outerCursorY) * .2;
+      const cursorOuter = document.querySelector('.cursor-outer');
+      if (cursorOuter) { cursorOuter.style.left = `${outerCursorX}px`; cursorOuter.style.top = `${outerCursorY}px`; }
+      if (sparkParticles) {
+        const positions = sparkParticles.geometry.attributes.position.array;
+        const time = clock.elapsedTime;
+        const scrollVelocity = Math.abs(targetScroll - currentScroll);
+        const speedMultiplier = 1 + scrollVelocity * 9;
+        const turbulence = scrollVelocity * .8;
+        for (let i = 0; i < sparkCount; i++) {
+          const idx = i * 3;
+          const data = sparkData[i];
+          positions[idx] += data.speedX * deltaTime * speedMultiplier;
+          positions[idx + 1] += data.speedY * deltaTime * speedMultiplier;
+          positions[idx + 2] += data.speedZ * deltaTime * speedMultiplier;
+          const sway = data.swayRadius * (1 + turbulence * 4);
+          positions[idx] += Math.sin(time * data.swaySpeed + data.phase) * sway * deltaTime;
+          positions[idx + 2] += Math.cos(time * data.swaySpeed + data.phase) * sway * deltaTime;
+          if (positions[idx + 1] > 3 || Math.abs(positions[idx]) > 3.5 || Math.abs(positions[idx + 2]) > 3.5) {
+            positions[idx + 1] = -2.5;
+            positions[idx] = (Math.random() - .5) * 3;
+            positions[idx + 2] = (Math.random() - .5) * 3;
+          }
+        }
+        sparkParticles.geometry.attributes.position.needsUpdate = true;
+      }
+      const phi = currentScroll * Math.PI * 2;
+      const y = .35 + Math.sin(currentScroll * Math.PI) * .8;
+      const radius = 4.2 - Math.sin(currentScroll * Math.PI) * .6;
+      const x = radius * Math.sin(phi);
+      const z = radius * Math.cos(phi);
+      const transitionProgress = Math.min(1, currentScroll / .28);
+      const easeFactor = (Math.cos(transitionProgress * Math.PI) + 1) * .5;
+      const targetLookAt = new THREE.Vector3(-.9 * easeFactor, -.15, 0);
+      camera.position.lerp(new THREE.Vector3(x, y, z), .08);
+      camera.lookAt(targetLookAt);
+      if (modelPivot) {
+        const previewIn = smoothProgress(currentScroll, .2, .29);
+        const previewOut = 1 - smoothProgress(currentScroll, .4, .5);
+        const previewBlend = previewIn * previewOut;
+        const positionEase = 1 - Math.exp(-6 * deltaTime);
+        const xTarget = THREE.MathUtils.lerp(1.48, .32, previewBlend);
+        const yTarget = THREE.MathUtils.lerp(.62, .92, previewBlend);
+        const baseScale = modelPivot.userData.baseScale || .5;
+        const targetScale = THREE.MathUtils.lerp(baseScale, Math.min(baseScale, .39), previewBlend);
+        modelPivot.position.x = THREE.MathUtils.lerp(modelPivot.position.x, xTarget, positionEase);
+        modelPivot.position.y = THREE.MathUtils.lerp(modelPivot.position.y, yTarget, positionEase);
+        modelPivot.position.z = THREE.MathUtils.lerp(modelPivot.position.z, -4.2, positionEase);
+        modelPivot.rotation.x = THREE.MathUtils.damp(modelPivot.rotation.x, mouseY * .045, 5, deltaTime);
+        modelPivot.rotation.y = THREE.MathUtils.damp(modelPivot.rotation.y, mouseX * .055 + Math.sin(clock.elapsedTime * .14) * .025, 5, deltaTime);
+        modelPivot.rotation.z = THREE.MathUtils.damp(modelPivot.rotation.z, Math.sin(clock.elapsedTime * .11) * .012, 5, deltaTime);
+        modelPivot.scale.setScalar(THREE.MathUtils.damp(modelPivot.scale.x, targetScale, 6, deltaTime));
+      }
+      updateCoinCurrency(deltaTime);
+      shaderUniforms.uTime.value = clock.elapsedTime;
+      shaderUniforms.uMouse.value.set(mouseX, -mouseY);
+      shaderUniforms.uScroll.value = currentScroll;
+      updateSlides(currentScroll);
+      updateGridDots(currentScroll);
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('mousemove', event => {
+      cursorX = event.clientX;
+      cursorY = event.clientY;
+      const cursorInner = document.querySelector('.cursor-inner');
+      if (cursorInner) { cursorInner.style.left = `${cursorX}px`; cursorInner.style.top = `${cursorY}px`; }
+      targetMouseX = (event.clientX / window.innerWidth) * 2 - 1;
+      targetMouseY = (event.clientY / window.innerHeight) * 2 - 1;
+    });
+    window.addEventListener('resize', onWindowResize);
+    document.querySelectorAll('a').forEach(link => {
+      link.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
+      link.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+    });
+
+    function initializePage() {
+      splitTitlesIntoChars();
+      try {
+        createScene();
+        onWindowResize();
+        animate();
+      } catch (error) {
+        console.warn('Ledgerly background scene could not start:', error);
+      }
+      setupDashboard();
+      setupNavigation();
+    }
+    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', initializePage, { once: true });
+    else initializePage();
+  </script>
+</body>
 </html>
