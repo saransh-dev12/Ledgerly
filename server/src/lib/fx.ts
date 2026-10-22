@@ -65,23 +65,21 @@ export async function getRate(base: string, quote: string, date = 'latest'): Pro
 }
 
 export async function getHistory(base: string, quote: string, days = 30) {
-  // v2 history shape varies — try range endpoint, tolerate failure (pulse degrades gracefully).
+  const B = base.toUpperCase(), Q = quote.toUpperCase();
   const end = new Date();
   const start = new Date(Date.now() - Math.min(days, 365) * 86400000);
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  const attempts = [
-    `${BASE}/history/${fmt(start)}..${fmt(end)}/${base.toLowerCase()}/${quote.toLowerCase()}`,
-    `${BASE}/${fmt(start)}..${fmt(end)}.json?base=${base}&symbols=${quote}`,
-  ];
-  let lastErr: any = null;
-  for (const url of attempts) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) { lastErr = new Error(`FX history ${res.status}`); continue; }
-      return await res.json();
-    } catch (e) { lastErr = e; }
-  }
-  throw lastErr || new Error('History unavailable');
+  const res = await fetch(`${BASE}/rates?base=${B}&quotes=${Q}&from=${fmt(start)}&to=${fmt(end)}`);
+  if (!res.ok) throw new Error(`FX history ${res.status}`);
+  const payload: any = await res.json();
+  if (payload && !Array.isArray(payload) && payload.rates) return payload;
+  if (!Array.isArray(payload)) throw new Error('Unexpected history payload.');
+  const rates: Record<string, number> = {};
+  payload.forEach((row: any) => {
+    const rate = Number(row?.rate);
+    if (row?.date && Number.isFinite(rate)) rates[row.date] = rate;
+  });
+  return { base: B, quote: Q, rates };
 }
 
 export async function getCurrencies() {
