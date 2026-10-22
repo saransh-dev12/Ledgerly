@@ -97,6 +97,21 @@
     .preview-metrics small { color: #777c70; font-size: 6px; white-space: nowrap; }
     .preview-caption { display: flex; align-items: center; gap: 7px; margin-top: 11px; color: #787d72; font-size: 7px; letter-spacing: .3px; }
     .preview-caption i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+    .preview-rows { display: grid; margin-top: 13px; }
+    .preview-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid rgb(255 255 255 / 8%); }
+    .preview-row:last-child { border-bottom: 0; }
+    .preview-row-name { overflow: hidden; color: #e6e8df; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-row-meta { color: #7b8074; font-size: 7px; letter-spacing: .7px; text-transform: uppercase; }
+    .preview-row-amount { grid-row: span 2; align-self: center; color: #d9dcd2; font-family: var(--mono); font-size: 10.5px; }
+    .preview-row-amount.is-in { color: var(--accent); }
+    .preview-row-amount.is-out { color: #b9bdb0; }
+    .preview-goals { display: grid; gap: 11px; margin-top: 15px; }
+    .preview-goal-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .preview-goal-name { color: #e6e8df; font-size: 10.5px; }
+    .preview-goal-pct { color: var(--accent); font-family: var(--mono); font-size: 8px; }
+    .preview-goal-bar { height: 5px; margin-top: 6px; overflow: hidden; background: rgb(255 255 255 / 9%); }
+    .preview-goal-bar i { display: block; height: 100%; background: var(--accent); }
+    .preview-goal-meta { margin-top: 5px; color: #7b8074; font-size: 7px; letter-spacing: .5px; }
 
     .dashboard-view { position: fixed; inset: 0; z-index: 100; display: none; overflow-y: auto; overscroll-behavior: contain; color: #f4f2ea; background: #08090b; }
     .dashboard-view.open { display: block; }
@@ -911,6 +926,13 @@
     [data-theme="brutal"] .preview-metrics div { border-left: 2px solid rgb(22 19 15 / 20%); }
     [data-theme="brutal"] .preview-metrics strong { color: #16130f; font-family: var(--mono); }
     [data-theme="brutal"] .preview-caption i { background: var(--accent); }
+    [data-theme="brutal"] .preview-row { border-bottom: 1px solid rgb(22 19 15 / 16%); }
+    [data-theme="brutal"] .preview-row-name, [data-theme="brutal"] .preview-row-amount, [data-theme="brutal"] .preview-goal-name { color: #16130f; }
+    [data-theme="brutal"] .preview-row-meta, [data-theme="brutal"] .preview-goal-meta { color: #6f6a5e; }
+    [data-theme="brutal"] .preview-row-amount.is-in { color: #0f7a43; }
+    [data-theme="brutal"] .preview-row-amount.is-out { color: #c62d1f; }
+    [data-theme="brutal"] .preview-goal-bar { border: 1px solid #16130f; background: #ece7da; }
+    [data-theme="brutal"] .preview-goal-bar i { background: var(--accent); }
     [data-theme="brutal"] .preview-chart svg path[stroke="#2b3df0"], [data-theme="brutal"] .preview-chart svg circle[fill="#2b3df0"] { stroke: var(--accent); fill: var(--accent); }
     [data-theme="brutal"] .preview-chart svg path[stroke^="url(#chart-line)"] { stroke: var(--accent); }
     [data-theme="brutal"] .preview-chart svg path[fill^="url(#chart-fill)"] { fill: rgb(43 61 240 / 12%); }
@@ -1340,6 +1362,53 @@
       </div>
     </div>
 
+    <div class="slide-image-mask" id="slide-3-img" aria-label="Illustrative Ledgerly activity preview">
+      <div class="dashboard-card">
+        <div class="preview-head">
+          <span class="preview-mark"><b>FX</b> LEDGERLY <span style="color:#55594f">/</span> ACTIVITY</span>
+          <span class="preview-status">● &nbsp;LIVE LEDGER</span>
+        </div>
+        <div class="balance-label">NET THIS MONTH <em>ILLUSTRATIVE</em></div>
+        <div class="balance-value">+3,026.00 USD <span class="balance-change">+12.4%</span></div>
+        <div class="preview-rows">
+          <div class="preview-row"><span class="preview-row-name">Studio retainer</span><span class="preview-row-amount is-in">+4,850.00</span><span class="preview-row-meta">Income · Oct 16</span></div>
+          <div class="preview-row"><span class="preview-row-name">Apartment rent</span><span class="preview-row-amount is-out">−1,240.00</span><span class="preview-row-meta">Housing · Oct 15</span></div>
+          <div class="preview-row"><span class="preview-row-name">Groceries</span><span class="preview-row-amount is-out">−268.00</span><span class="preview-row-meta">Food &amp; dining · Oct 14</span></div>
+          <div class="preview-row"><span class="preview-row-name">Metro card</span><span class="preview-row-amount is-out">−62.00</span><span class="preview-row-meta">Transport · Oct 13</span></div>
+        </div>
+        <div class="preview-caption"><i></i> Every entry in one place, with the pattern behind it</div>
+      </div>
+    </div>
+
+    <div class="slide-image-mask" id="slide-4-img" aria-label="Illustrative Ledgerly goals preview">
+      <div class="dashboard-card">
+        <div class="preview-head">
+          <span class="preview-mark"><b>FX</b> LEDGERLY <span style="color:#55594f">/</span> PLAN</span>
+          <span class="preview-status">● &nbsp;ON TRACK</span>
+        </div>
+        <div class="balance-label">MONTHLY SET-ASIDE <em>ILLUSTRATIVE</em></div>
+        <div class="balance-value">1,260.00 USD <span class="balance-change">NEXT 30 DAYS</span></div>
+        <div class="preview-goals">
+          <div class="preview-goal">
+            <div class="preview-goal-top"><span class="preview-goal-name">Emergency fund</span><span class="preview-goal-pct">62%</span></div>
+            <div class="preview-goal-bar"><i style="width:62%"></i></div>
+            <div class="preview-goal-meta">6,200 of 10,000 USD · 620 / month</div>
+          </div>
+          <div class="preview-goal">
+            <div class="preview-goal-top"><span class="preview-goal-name">Tokyo trip</span><span class="preview-goal-pct">40%</span></div>
+            <div class="preview-goal-bar"><i style="width:40%"></i></div>
+            <div class="preview-goal-meta">1,800 of 4,500 USD · 300 / month</div>
+          </div>
+          <div class="preview-goal">
+            <div class="preview-goal-top"><span class="preview-goal-name">Buffer</span><span class="preview-goal-pct">55%</span></div>
+            <div class="preview-goal-bar"><i style="width:55%"></i></div>
+            <div class="preview-goal-meta">1,100 of 2,000 USD · 340 / month</div>
+          </div>
+        </div>
+        <div class="preview-caption"><i></i> Room to decide, one month at a time</div>
+      </div>
+    </div>
+
     <section class="slide" id="slide-2" aria-labelledby="title-2">
       <span class="slide-kicker">See it clearly</span>
       <h2 class="slide-title" id="title-2">One view of<br>your money.</h2>
@@ -1669,14 +1738,13 @@
       return false;
     });
 
-    const canvas = document.querySelector('#webgl');
+    let canvas = document.querySelector('#webgl');
     let scene, camera, renderer, modelPivot, sparkParticles, coinCurrency;
     let clock = null;
     let currentScroll = 0;
     let mouseX = 0, mouseY = 0, targetMouseX = 0, targetMouseY = 0;
     let cursorX = window.innerWidth / 2, cursorY = window.innerHeight / 2;
     let outerCursorX = cursorX, outerCursorY = cursorY;
-    let bgMaterial;
     const shaderUniforms = {
       uTime: { value: 0 },
       uResolution: { value: null },
@@ -1686,80 +1754,6 @@
     const sparkCount = 450;
     const sparkData = [];
     const sizes = { width: window.innerWidth, height: window.innerHeight };
-
-    function createBackgroundShader() {
-      const vertexShader = `
-        varying vec2 vUv;
-        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-      `;
-      const fragmentShader = `
-        varying vec2 vUv;
-        uniform float uTime;
-        uniform vec2 uResolution;
-        uniform vec2 uMouse;
-        uniform float uScroll;
-        float hash(float n) { return fract(sin(n) * 43758.5453123); }
-        float noise(in vec3 x) {
-          vec3 p = floor(x); vec3 f = fract(x); f = f*f*(3.0-2.0*f);
-          float n = p.x + p.y*57.0 + 113.0*p.z;
-          return mix(mix(mix(hash(n), hash(n+1.0), f.x), mix(hash(n+57.0), hash(n+58.0), f.x), f.y),
-                     mix(mix(hash(n+113.0), hash(n+114.0), f.x), mix(hash(n+170.0), hash(n+171.0), f.x), f.y), f.z);
-        }
-        void main() {
-          vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / uResolution.y;
-          float aspect = uResolution.x / uResolution.y;
-          float time = uTime * 0.08;
-          float scroll = uScroll;
-          float angle1 = 0.6, angle2 = -0.7, angle3 = 1.2;
-          float freq1 = 2.4, freq2 = 3.2, freq3 = 4.0;
-          vec2 warpedUv = uv;
-          float scrollDeform = scroll * 5.0;
-          warpedUv.x += sin(uv.y * 2.5 + time * 0.2 + scrollDeform) * 0.35;
-          warpedUv.y += cos(uv.x * 2.5 - time * 0.15 - scrollDeform * 0.8) * 0.35;
-          warpedUv.x += sin(uv.y * 1.2 - time * 0.1 - scrollDeform * 1.5) * 0.25;
-          warpedUv.y += cos(uv.x * 1.2 + time * 0.18 + scrollDeform * 1.2) * 0.25;
-          vec2 scrollDrift = vec2(scroll * 0.04, -scroll * 0.02);
-          vec2 mouseShift = vec2(uMouse.x * aspect * 0.05, uMouse.y * 0.05);
-          warpedUv += scrollDrift + mouseShift;
-          vec2 dir1 = vec2(cos(angle1), sin(angle1));
-          vec2 dir2 = vec2(cos(angle2), sin(angle2));
-          vec2 dir3 = vec2(cos(angle3), sin(angle3));
-          float w1 = sin(dot(warpedUv, dir1) * freq1 + time);
-          float w2 = cos(dot(warpedUv, dir2) * freq2 - time * 1.4 + w1 * 0.4);
-          float w3 = sin(dot(warpedUv, dir3) * freq3 + time * 1.8 + w2 * 0.5);
-          float waveField = w1 * 0.50 + w2 * 0.35 + w3 * 0.15;
-          float wideSheen = pow(max(0.0, 1.0 - abs(waveField - 0.1)), 2.5);
-          float crispSpecular = pow(max(0.0, 1.0 - abs(waveField - 0.15)), 8.0);
-          float crest = wideSheen * 0.5 + crispSpecular * 0.9;
-          vec3 c0_shadow = vec3(THEME.c0shadow[0], THEME.c0shadow[1], THEME.c0shadow[2]);
-          vec3 c0_wave1 = vec3(THEME.c0w1[0], THEME.c0w1[1], THEME.c0w1[2]);
-          vec3 c0_wave2 = vec3(THEME.c0w2[0], THEME.c0w2[1], THEME.c0w2[2]);
-          vec3 c0_crest = vec3(THEME.c0crest[0], THEME.c0crest[1], THEME.c0crest[2]);
-          vec3 c1_shadow = vec3(THEME.c1shadow[0], THEME.c1shadow[1], THEME.c1shadow[2]);
-          vec3 c1_wave1 = vec3(THEME.c1w1[0], THEME.c1w1[1], THEME.c1w2[2]);
-          vec3 c1_wave2 = vec3(THEME.c1w2[0], THEME.c1w2[1], THEME.c1w2[2]);
-          vec3 c1_crest = vec3(THEME.c1crest[0], THEME.c1crest[1], THEME.c1crest[2]);
-          float t = smoothstep(0.0, 1.0, scroll);
-          vec3 colShadow = mix(c0_shadow, c1_shadow, t);
-          vec3 colWave1 = mix(c0_wave1, c1_wave1, t);
-          vec3 colWave2 = mix(c0_wave2, c1_wave2, t);
-          vec3 colCrest = mix(c0_crest, c1_crest, t);
-          vec3 color = colShadow;
-          color = mix(color, colWave2, smoothstep(-0.6, 0.2, waveField));
-          color = mix(color, colWave1, smoothstep(0.0, 0.8, waveField));
-          color += colCrest * crest * 0.9;
-          float vignette = 1.0 - dot(uv, uv) * 0.12;
-          color *= vignette;
-          gl_FragColor = vec4(color, 1.0);
-        }
-      `;
-      const THEME = theme().shader;
-      bgMaterial = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms: shaderUniforms, depthWrite: false, depthTest: false });
-      const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), bgMaterial);
-      bgMesh.position.set(0, 0, -8);
-      bgMesh.renderOrder = -10;
-      camera.add(bgMesh);
-    }
 
     function createSparkTexture() {
       const sparkCanvas = document.createElement('canvas');
@@ -2027,7 +2021,6 @@
       camera = new THREE.PerspectiveCamera(50, sizes.width / sizes.height, .1, 100);
       camera.position.set(0, .2, 3);
       scene.add(camera);
-      createBackgroundShader();
       try {
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
         renderer.setSize(sizes.width, sizes.height);
@@ -2036,6 +2029,7 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.3;
+        canvas.__ledgerlyRenderer = renderer;
       } catch (error) {
         document.body.classList.add('no-webgl');
         throw error;
@@ -2118,7 +2112,10 @@
       activeRanges.forEach(([start, end], index) => {
         document.getElementById(`slide-${index + 1}`).classList.toggle('active', scroll >= start && scroll <= end);
       });
-      document.getElementById('slide-2-img').classList.toggle('active', scroll >= .28 && scroll <= .4);
+      [['slide-2-img', .28, .4], ['slide-3-img', .56, .68], ['slide-4-img', .84, 1.05]].forEach(([id, start, end]) => {
+        const mask = document.getElementById(id);
+        if (mask) mask.classList.toggle('active', scroll >= start && scroll <= end);
+      });
     }
 
     const openingBalance = 70660;
@@ -3180,7 +3177,7 @@
       camera.lookAt(targetLookAt);
       if (modelPivot) {
         const previewIn = smoothProgress(currentScroll, .2, .29);
-        const previewOut = 1 - smoothProgress(currentScroll, .4, .5);
+        const previewOut = 1 - smoothProgress(currentScroll, .98, 1.06);
         const previewBlend = previewIn * previewOut;
         const positionEase = 1 - Math.exp(-6 * deltaTime);
         const xTarget = THREE.MathUtils.lerp(1.48, .32, previewBlend);
@@ -3250,13 +3247,13 @@
       rebuildScene();
     }
     function rebuildScene() {
-      const canvas = document.getElementById('webgl');
       if (!canvas || !renderer) return;
-      try { renderer.dispose(); } catch (error) {}
+      try { renderer.forceContextLoss(); renderer.dispose(); } catch (error) {}
       const fresh = canvas.cloneNode(false);
       canvas.replaceWith(fresh);
+      canvas = fresh;
       scene = null; camera = null; renderer = null; clock = null;
-      modelPivot = null; sparkParticles = null; coinCurrency = null; bgMaterial = null;
+      modelPivot = null; sparkParticles = null; coinCurrency = null;
       if (shaderUniforms.uResolution.value) shaderUniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
       if (shaderUniforms.uMouse.value) shaderUniforms.uMouse.value.set(0, 0);
       try {
