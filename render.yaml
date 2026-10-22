@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ledgerly-api
+    runtime: docker
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: FRANKFURTER_BASE_URL
+        value: https://api.frankfurter.dev/v2

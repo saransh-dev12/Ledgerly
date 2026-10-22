@@ -1,0 +1,199 @@
+// Ledgerly full-stack schema — additive, preserves demo localStorage behavior.
+// Money is stored in minor units (integer) + currency code. Converted values
+// are stored separately in transaction_valuations so originals are never lost.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String   @default("My workspace")
+  homeCurrency String   @default("INR") @db.Char(3)
+  locale       String   @default("en-IN")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts     Account[]
+  categories   Category[]
+  budgets      Budget[]
+  goals        SavingsGoal[]
+  recurring    RecurringRule[]
+  quotes       ProviderQuote[]
+  insights     AiInsight[]
+}
+
+model Account {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  type               String   @default("cash") // cash | bank | wallet | card
+  currency           String   @db.Char(3)
+  openingMinor       BigInt   @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  transactions       Transaction[]
+
+  @@index([userId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  kind      String   @default("expense") // income | expense
+  icon      String   @default("•")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind        String   // income | expense | transfer_in | transfer_out | refund | reversal
+  amountMinor BigInt   // signed minor units in transaction currency
+  currency    String   @db.Char(3)
+  bookedAt    DateTime @default(now())
+  note        String   @default("")
+  category    String   @default("Other")
+  // Original FX snapshot
+  rateToHome  Decimal? @db.Decimal(18, 8)
+  createdAt   DateTime @default(now())
+
+  linksFrom   TransactionLink[] @relation("linkFrom")
+  linksTo     TransactionLink[] @relation("linkTo")
+  valuations  TransactionValuation[]
+
+  @@index([userId, bookedAt])
+  @@index([accountId, bookedAt])
+}
+
+model TransactionLink {
+  id        String      @id @default(cuid())
+  fromId    String
+  from      Transaction @relation("linkFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId      String
+  to        Transaction @relation("linkTo", fields: [toId], references: [id], onDelete: Cascade)
+  linkType  String      // transfer | refund | reversal
+  createdAt DateTime    @default(now())
+
+  @@index([fromId])
+  @@index([toId])
+}
+
+model TransactionValuation {
+  id            String      @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  homeCurrency  String      @db.Char(3)
+  homeMinor     BigInt
+  rate          Decimal     @db.Decimal(18, 8)
+  observedDate  String      // YYYY-MM-DD from Frankfurter
+  source        String      @default("frankfurter")
+  createdAt     DateTime    @default(now())
+
+  @@index([transactionId])
+}
+
+model Budget {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category      String
+  period        String   @default("monthly") // monthly
+  limitMinor    BigInt
+  currency      String   @db.Char(3)
+  yearMonth     String   // e.g. 2026-10
+  createdAt     DateTime @default(now())
+
+  @@index([userId, yearMonth])
+}
+
+model SavingsGoal {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  targetMinor   BigInt
+  savedMinor    BigInt   @default(0)
+  currency      String   @db.Char(3)
+  deadline      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model RecurringRule {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId     String?
+  title         String
+  kind          String   // income | expense
+  amountMinor   BigInt
+  currency      String   @db.Char(3)
+  category      String   @default("Other")
+  frequency     String   @default("monthly") // weekly | monthly | yearly
+  nextRun       DateTime
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([userId, nextRun])
+}
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  base      String   @db.Char(3)
+  quote     String   @db.Char(3)
+  date      String   // YYYY-MM-DD
+  rate      Decimal  @db.Decimal(18, 8)
+  source    String   @default("frankfurter")
+  createdAt DateTime @default(now())
+
+  @@unique([base, quote, date])
+  @@index([base, quote])
+}
+
+model ProviderQuote {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromCurrency   String   @db.Char(3)
+  toCurrency     String   @db.Char(3)
+  providerRate   Decimal  @db.Decimal(18, 8)
+  providerLabel  String   @default("")
+  fixedFeeMinor  BigInt   @default(0)
+  percentFee     Decimal  @default(0) @db.Decimal(8, 4)
+  taxPercent     Decimal  @default(0) @db.Decimal(8, 4)
+  referenceRate  Decimal? @db.Decimal(18, 8)
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AiInsight {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  refs      Json     @default("[]") // supporting evidence: transaction ids, totals
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
