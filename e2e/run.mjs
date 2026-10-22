@@ -56,7 +56,17 @@ try {
   await page.waitForTimeout(1100);
   const snap = await page.evaluate(() => window.scrollY / (document.documentElement.scrollHeight - window.innerHeight));
   check('scroll snaps to a section', Math.abs(snap - 0.34) < 0.03, 'ratio ' + snap.toFixed(3));
+  check('overview preview appears', await page.locator('#slide-2-img').evaluate(el => el.classList.contains('active')));
+  await page.evaluate(() => window.scrollTo({ top: (document.documentElement.scrollHeight - window.innerHeight) * 0.62, behavior: 'instant' }));
+  await page.waitForTimeout(1100);
+  check('activity preview appears', await page.locator('#slide-3-img').evaluate(el => el.classList.contains('active')));
+  check('activity preview lists four entries', (await page.locator('#slide-3-img .preview-row').count()) === 4);
+  await page.evaluate(() => window.scrollTo({ top: (document.documentElement.scrollHeight - window.innerHeight) * 0.94, behavior: 'instant' }));
+  await page.waitForTimeout(1100);
+  check('plan preview appears', await page.locator('#slide-4-img').evaluate(el => el.classList.contains('active')));
+  check('plan preview lists three goals', (await page.locator('#slide-4-img .preview-goal').count()) === 3);
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await page.waitForTimeout(900);
 
   // theme switch
   const themeBefore = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
@@ -65,8 +75,14 @@ try {
   const themeAfter = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   check('theme switch works', themeBefore !== themeAfter, `${themeBefore} -> ${themeAfter}`);
   check('theme switch error free', errors.length === 0, errors.slice(0, 2).join(' | '));
+  const sceneBound = () => page.evaluate(() => {
+    const canvas = document.querySelector('#webgl');
+    return !!canvas && !!canvas.__ledgerlyRenderer && canvas.__ledgerlyRenderer.domElement === canvas;
+  });
+  check('coin scene survives theme switch', await sceneBound());
   await page.click('[data-theme-toggle]');
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1300);
+  check('coin scene survives theme round trip', await sceneBound());
 
   // ================= CONVERTER =================
   await page.click('#open-currency-tools-nav');
@@ -323,6 +339,9 @@ try {
   // pulse
   await page.click('.dash-side-nav [data-view="pulse"]');
   await page.waitForTimeout(2500);
+  const hist = await api(page, '/api/fx/history?base=USD&quote=EUR&days=30');
+  const histPoints = Object.keys((hist && hist.body && hist.body.rates) || {}).length;
+  check('fx history returns daily points', hist.status === 200 && histPoints >= 15, histPoints + ' points');
   check('pulse tiles render', (await page.locator('.pulse-tile').count()) === 4);
   check('pulse shows a rate', /FRESH|STALE/.test(await page.locator('#pulse-list').innerText()));
   await Shot(page, '04-pulse');

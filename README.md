@@ -23,7 +23,7 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 Browser (Vite, zero-framework UI)
   ├── index.html            landing + dashboard + converter (vanilla JS, ES modules)
   ├── public/ledgerly-api.js thin API client (additive; demo works without it)
-  └── e2e/run.mjs           Playwright suite (73 checks, real browser)
+  └── e2e/run.mjs           Playwright suite (81 checks, real browser)
         │  HTTPS + Bearer JWT
         ▼
 Express API (TypeScript)
@@ -77,7 +77,7 @@ Open <http://localhost:5173>. Use the public converter without an account; sign 
 ## Testing
 
 ```sh
-npm run test:e2e      # reseeds the demo, then runs 73 Playwright checks
+npm run test:e2e      # reseeds the demo, then runs 81 Playwright checks
 npm run lint         # oxlint
 ```
 
