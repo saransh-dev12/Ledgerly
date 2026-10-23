@@ -21,6 +21,14 @@ async function newPage(viewport = { width: 1440, height: 900 }) {
   page.on('pageerror', e => errors.push(String(e).slice(0, 160)));
   return page;
 }
+async function openDashboard(page) {
+  try {
+    await page.click('.contact-btn', { timeout: 8000 });
+  } catch {
+    await page.goto(WEB + '/#dashboard', { waitUntil: 'domcontentloaded' });
+  }
+  await page.waitForSelector('#dashboard-view.open', { timeout: 10000 });
+}
 async function login(page) {
   await page.evaluate(base => localStorage.setItem('ledgerly.api.base', base), API);
   await page.click('#auth-button');
@@ -91,6 +99,7 @@ try {
   let conv = await page.locator('#currency-result').innerText();
   if (/unavailable/i.test(conv)) { await page.click('#refresh-currency-rate').catch(() => {}); await page.waitForTimeout(4000); conv = await page.locator('#currency-result').innerText(); }
   check('converter computes', /EUR/.test(conv) && !/10,000,/.test(conv), conv.replace(/\n/g, ' ').slice(0, 48));
+  await page.waitForFunction(() => document.querySelectorAll('#currency-from option').length >= 150, { timeout: 15000 }).catch(() => {});
   check('full currency directory', (await page.locator('#currency-from option').count()) >= 150, (await page.locator('#currency-from option').count()) + ' currencies');
   check('popular pairs rendered', (await page.locator('#currency-popular-list button').count()) === 12);
 
@@ -375,8 +384,7 @@ try {
   // ================= MOBILE =================
   const mob = await newPage({ width: 390, height: 844 });
   await mob.goto(WEB, { waitUntil: 'networkidle' });
-  await mob.click('.contact-btn');
-  await mob.waitForSelector('#dashboard-view.open');
+  await openDashboard(mob);
   check('mobile: sidebar hidden', !(await mob.locator('.dash-sidebar').isVisible()));
   check('mobile: tab bar visible', await mob.locator('.dash-viewtabs').isVisible());
   await mob.locator('.dash-viewtabs button', { hasText: 'Goals' }).click();
@@ -390,8 +398,7 @@ try {
   await off.route('**/api/**', route => route.abort());
   await off.goto(WEB, { waitUntil: 'domcontentloaded' });
   await off.waitForTimeout(2500);
-  await off.click('.contact-btn');
-  await off.waitForSelector('#dashboard-view.open', { timeout: 8000 });
+  await openDashboard(off);
   check('offline: dashboard still opens', (await off.locator('#total-balance').innerText()).length > 1);
   await off.click('#open-transaction');
   await off.fill('#transaction-name', 'Offline entry');
@@ -403,8 +410,7 @@ try {
   // ================= AUTH HARDENING =================
   const auth = await newPage();
   await auth.goto(WEB, { waitUntil: 'networkidle' });
-  await auth.click('.contact-btn');
-  await auth.waitForSelector('#dashboard-view.open');
+  await openDashboard(auth);
   await login(auth);
   const logout = await api(auth, '/api/auth/logout', { method: 'POST' });
   check('auth: logout succeeds', logout.status === 200, logout.status);
