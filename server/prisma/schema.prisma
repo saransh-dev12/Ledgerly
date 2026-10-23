@@ -1,4 +1,4 @@
-// Ledgerly full-stack schema — additive, preserves demo localStorage behavior.
+// Roviel full-stack schema — additive, preserves demo localStorage behavior.
 // Money is stored in minor units (integer) + currency code. Converted values
 // are stored separately in transaction_valuations so originals are never lost.
 

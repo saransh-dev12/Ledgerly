@@ -1,10 +1,10 @@
-# Ledgerly
+# Roviel
 
 **Give every currency a direction.** A full-stack, multi-currency finance tracker: a cinematic public landing page, a live reference-rate converter, and an authenticated ledger with accounts, budgets, goals, recurring rules and evidence-based insights.
 
 Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL + Prisma in front, a dependency-free design system in the browser.
 
-**Live:** [ledgerly-phi-seven.vercel.app](https://ledgerly-phi-seven.vercel.app) · [API health](https://ledgerly-api-4yhc.onrender.com/health) — demo login `demo@ledgerly.app` / `ledgerly123`.
+**Live:** [roviel-phi-seven.vercel.app](https://roviel-phi-seven.vercel.app) · [API health](https://roviel-api-4yhc.onrender.com/health) — demo login `demo@ledgerly.app` / `ledgerly123`.
 
 > The API runs on Render's free tier and sleeps after 15 minutes idle, so the first request can take ~30 seconds. Cloud mode wakes it; the offline demo is instant.
 
@@ -26,7 +26,7 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 ```
 Browser (Vite, zero-framework UI)
   ├── index.html            landing + dashboard + converter (vanilla JS, ES modules)
-  ├── public/ledgerly-api.js thin API client (additive; demo works without it)
+  ├── public/roviel-api.js thin API client (additive; demo works without it)
   ├── e2e/run.mjs           Playwright suite (84 checks, real browser)
   └── server/test/          Vitest money/maths unit tests (JPY, KWD, fees)
         │  HTTPS + Bearer JWT
@@ -50,7 +50,7 @@ PostgreSQL — 12 tables, user-scoped by userId on every query
 
 ## Design system
 
-Ledgerly ships **two complete, switchable themes** — one design language applied to the landing page, the dashboard, the converter and every popup. The active theme is stored in `localStorage` and applied via `data-theme` on `<html>`; the toggle in the header switches instantly (the WebGL scene is rebuilt with the matching palette).
+Roviel ships **two complete, switchable themes** — one design language applied to the landing page, the dashboard, the converter and every popup. The active theme is stored in `localStorage` and applied via `data-theme` on `<html>`; the toggle in the header switches instantly (the WebGL scene is rebuilt with the matching palette).
 
 | Theme | Character |
 | --- | --- |
@@ -119,11 +119,11 @@ The E2E suite drives a real Chromium instance and asserts exact values rather th
 | API | Render (Docker) | `render.yaml` |
 | Database | Render Postgres (free) | `server/prisma/migrations` |
 
-Live URLs: web `https://ledgerly-phi-seven.vercel.app`, API `https://ledgerly-api-4yhc.onrender.com` (Render service `ledgerly-api`, Singapore, Docker, `rootDir: server`).
+Live URLs: web `https://roviel-phi-seven.vercel.app`, API `https://roviel-api-4yhc.onrender.com` (Render service `roviel-api`, Singapore, Docker, `rootDir: server`).
 
 1. **Database** — create a free Render Postgres in the same region as the API and copy its **internal** connection string for the service. External connections are closed until the source IP is allow-listed; to seed from a laptop, add your own IP (`render postgres update <db> --ip-allow-list "cidr=<ip>/32,description=seed"`), append `?sslmode=require`, run the seed, then clear the list (`--clear-ip-allow-list`).
 2. **API** — create a Render Docker web service with `rootDir: server`, health check `/health`, and env `DATABASE_URL`, `FRONTEND_URL` (comma-separated allow-list for the web origins) and `JWT_SECRET`. The image installs OpenSSL 3 so Prisma's schema engine can run; the container executes `prisma migrate deploy` before starting the server.
-3. **Frontend** — the Vercel project is linked locally (`.vercel/`, gitignored) and `VITE_API_URL` is set for Production and Preview. Deploy with `vercel --prod`, which rebuilds the bundle with the API URL baked in; the value takes precedence over `meta[name="ledgerly-api"]` and the localStorage override. The project is not connected to GitHub yet, so pushing alone does not deploy the frontend.
+3. **Frontend** — the Vercel project is linked locally (`.vercel/`, gitignored) and `VITE_API_URL` is set for Production and Preview. Deploy with `vercel --prod`, which rebuilds the bundle with the API URL baked in; the value takes precedence over `meta[name="roviel-api"]` and the localStorage override. The project is not connected to GitHub yet, so pushing alone does not deploy the frontend.
 4. **Seed the demo** — `DATABASE_URL='<external-url>?sslmode=require' npm run db:seed`. The seed resets the demo user's data, so never point it at real users.
 
 `FRONTEND_URL` is also the CORS allow-list: requests from other origins are rejected. Local development needs no env at all — the web app defaults to `http://localhost:4000` on localhost and keeps working offline in demo mode.
@@ -136,14 +136,14 @@ The Render free plan does not include automated backups, and the demo database e
 
 ```sh
 # External access must be allowed for your IP first (Render dashboard or CLI).
-DATABASE_URL='postgresql://.../ledgerly?sslmode=require' ./scripts/backup-db.sh
+DATABASE_URL='postgresql://.../roviel?sslmode=require' ./scripts/backup-db.sh
 pg_restore --list backups/roviel-*.dump | head      # verify the archive
 ```
 
 Restore into a fresh database, never over live data without a snapshot:
 
 ```sh
-DATABASE_URL='postgresql://.../ledgerly?sslmode=require' RESTORE_CONFIRM=RESTORE ./scripts/restore-db.sh backups/roviel-YYYYMMDDTHHMMSSZ.dump
+DATABASE_URL='postgresql://.../roviel?sslmode=require' RESTORE_CONFIRM=RESTORE ./scripts/restore-db.sh backups/roviel-YYYYMMDDTHHMMSSZ.dump
 npm run db:migrate    # only if the backup predates the current schema
 ```
 
@@ -160,7 +160,7 @@ npm run db:migrate    # only if the backup predates the current schema
 
 ## Data sources & disclaimers
 
-Reference rates come from [Frankfurter](https://frankfurter.dev/) (central-bank blended), with a wide-coverage fallback for currencies the ECB feed does not publish. Rates are informational, dated, and can be revised — they are not provider quotes and Ledgerly never executes an exchange.
+Reference rates come from [Frankfurter](https://frankfurter.dev/) (central-bank blended), with a wide-coverage fallback for currencies the ECB feed does not publish. Rates are informational, dated, and can be revised — they are not provider quotes and Roviel never executes an exchange.
 
 ## Notable bugs found and fixed during testing
 
@@ -180,4 +180,4 @@ Reference rates come from [Frankfurter](https://frankfurter.dev/) (central-bank 
 
 ## Privacy
 
-Ledgerly stores only what you enter, scoped to your account, and deletes everything when you delete your account. The anonymous demo never leaves the browser. There is no third-party analytics and no advertising tracking.
+Roviel stores only what you enter, scoped to your account, and deletes everything when you delete your account. The anonymous demo never leaves the browser. There is no third-party analytics and no advertising tracking.

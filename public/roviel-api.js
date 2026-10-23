@@ -1,9 +1,9 @@
-// Ledgerly API client — additive layer. Existing localStorage demo keeps working
+// Roviel API client — additive layer. Existing localStorage demo keeps working
 // offline; when VITE_API_URL + token exist, dashboard syncs to Postgres.
-// Usage: <script src="/ledgerly-api.js"></script> then LedgerlyAPI.*
+// Usage: <script src="/roviel-api.js"></script> then RovielAPI.*
 (function () {
   function getBase() {
-    const explicit = (window.__LEDGERLY_API__ || (document.querySelector('meta[name="ledgerly-api"]') || {}).content || localStorage.getItem('ledgerly.api.base') || '').replace(/\/$/, '');
+    const explicit = (window.__ROVIEL_API__ || window.__LEDGERLY_API__ || (document.querySelector('meta[name="roviel-api"]') || document.querySelector('meta[name="ledgerly-api"]') || {}).content || localStorage.getItem('roviel.api.base') || localStorage.getItem('ledgerly.api.base') || '').replace(/\/$/, '');
     if (explicit) return explicit;
     // Local-dev default so Sign in works out of the box: web on :5173, API on :4000.
     try {
@@ -12,7 +12,7 @@
     } catch {}
     return '';
   }
-  const tokenKey = 'ledgerly.api.token';
+  const tokenKey = 'roviel.api.token';
   async function req(path, opts = {}) {
     const BASE = getBase();
     const token = localStorage.getItem(tokenKey);
@@ -23,7 +23,7 @@
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
     return res.json();
   }
-  window.LedgerlyAPI = {
+  window.RovielAPI = {
     get base() { return getBase(); },
     isCloud() { return !!getBase() && !!localStorage.getItem(tokenKey); },
     async signup(email, password) { const r = await req('/api/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) }); localStorage.setItem(tokenKey, r.token); return r; },
@@ -42,7 +42,7 @@
     insights: () => req('/api/insights'),
     // One-click demo import: pushes localStorage demo txs to cloud account
     async importDemo(getAccounts) {
-      const raw = JSON.parse(localStorage.getItem('ledgerly.transactions.v1') || '[]');
+      const raw = JSON.parse(localStorage.getItem('roviel.transactions.v1') || '[]');
       const accounts = getAccounts ? await getAccounts() : await req('/api/accounts');
       const cash = accounts[0];
       for (const t of raw.slice(0, 20)) {

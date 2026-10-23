@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: ledgerly
-      POSTGRES_PASSWORD: ledgerly
-      POSTGRES_DB: ledgerly
+      POSTGRES_USER: roviel
+      POSTGRES_PASSWORD: roviel
+      POSTGRES_DB: roviel
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
 volumes:

@@ -1,4 +1,4 @@
-# Ledgerly — agent workflow
+# Roviel — agent workflow
 
 ## Autonomy
 - Commit after each coherent unit of work (feature, fix, test or docs) without waiting to be asked.

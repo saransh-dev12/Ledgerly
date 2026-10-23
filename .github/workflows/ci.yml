@@ -42,9 +42,9 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: ledgerly
-          POSTGRES_PASSWORD: ledgerly
-          POSTGRES_DB: ledgerly
+          POSTGRES_USER: roviel
+          POSTGRES_PASSWORD: roviel
+          POSTGRES_DB: roviel
         ports:
           - 5432:5432
         options: >-
@@ -53,7 +53,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     env:
-      DATABASE_URL: postgresql://ledgerly:ledgerly@localhost:5432/ledgerly
+      DATABASE_URL: postgresql://roviel:roviel@localhost:5432/roviel
       JWT_SECRET: ci-only-not-a-production-secret
       FRONTEND_URL: http://localhost:5173
       CI: "true"

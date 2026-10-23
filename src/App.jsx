@@ -113,7 +113,7 @@ const iconByCategory = (category, type) => {
 
 const readSavedTransactions = () => {
   try {
-    const saved = localStorage.getItem("ledgerly.transactions.v1");
+    const saved = localStorage.getItem("roviel.transactions.v1");
     return saved ? JSON.parse(saved) : initialTransactions.map((item, index) => ({ ...item, id: `demo-${index}` }));
   } catch {
     return initialTransactions.map((item, index) => ({ ...item, id: `demo-${index}` }));
@@ -198,9 +198,9 @@ function LandingPage({ onEnter }) {
   return (
     <main className="landing-page" id="landing-top">
       <motion.header className="landing-nav" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
-        <a className="landing-brand" href="#landing-top" aria-label="Ledgerly home" onClick={(event) => { event.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+        <a className="landing-brand" href="#landing-top" aria-label="Roviel home" onClick={(event) => { event.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <span className="landing-brand-mark"><Wallet size={17} strokeWidth={1.8} /></span>
-          <span>ledgerly<span className="landing-brand-period">.</span></span>
+          <span>roviel<span className="landing-brand-period">.</span></span>
         </a>
         <nav className="landing-nav-links" aria-label="Main navigation">
           <button type="button" onClick={() => scrollTo("landing-system")}>The system</button>
@@ -224,7 +224,7 @@ function LandingPage({ onEnter }) {
               Open your dashboard <span><ArrowUpRight size={15} /></span>
             </motion.button>
             <motion.button className="landing-secondary" type="button" onClick={() => scrollTo("landing-system")} whileHover={{ x: 4 }} whileTap={{ scale: 0.97 }}>
-              Explore Ledgerly <ArrowDownRight size={15} />
+              Explore Roviel <ArrowDownRight size={15} />
             </motion.button>
           </div>
           <div className="landing-proof"><div className="landing-proof-icon"><CircleDollarSign size={15} /></div><span>A thoughtful system for everyday money.</span></div>
@@ -234,7 +234,7 @@ function LandingPage({ onEnter }) {
           <div className="landing-visual-glow" aria-hidden="true" />
           <motion.div className="landing-dashboard-preview" whileHover={{ y: -7, rotateX: 1.5, rotateY: -1.4 }} transition={{ type: "spring", stiffness: 180, damping: 24 }}>
             <div className="preview-topline">
-              <div className="preview-brand"><span className="preview-brand-symbol"><Wallet size={12} /></span> LEDGERLY <span className="preview-slash">/</span> OVERVIEW</div>
+              <div className="preview-brand"><span className="preview-brand-symbol"><Wallet size={12} /></span> ROVIEL <span className="preview-slash">/</span> OVERVIEW</div>
               <span className="preview-menu-dots"><i /><i /><i /></span>
             </div>
             <div className="preview-balance-label">TOTAL BALANCE <span>ILLUSTRATIVE</span></div>
@@ -281,7 +281,7 @@ function LandingPage({ onEnter }) {
           </motion.article>
           <motion.article className="landing-feature" whileHover={{ y: -6 }} transition={{ type: "spring", stiffness: 280, damping: 24 }}>
             <span className="landing-feature-index">03 / MOVE WITH INTENT</span><span className="landing-feature-icon"><Target size={18} /></span>
-            <h3>Make the next step yours.</h3><p>Set a goal, keep a buffer, or simply check in. Ledgerly gives you room to decide.</p>
+            <h3>Make the next step yours.</h3><p>Set a goal, keep a buffer, or simply check in. Roviel gives you room to decide.</p>
             <div className="feature-goal"><span>RAINY DAY FUND</span><strong><i /></strong><small>68% there</small></div>
           </motion.article>
         </div>
@@ -300,11 +300,11 @@ function LandingPage({ onEnter }) {
         <div className="landing-endcap-orbit" aria-hidden="true"><i /><i /><i /></div>
         <span className="landing-section-kicker">START WITH WHAT YOU HAVE</span>
         <h2>Your money can feel<br />a little more <em>in place.</em></h2>
-        <p>Open Ledgerly and get a clearer look at today.</p>
+        <p>Open Roviel and get a clearer look at today.</p>
         <motion.button className="landing-primary" type="button" onClick={onEnter} whileHover={{ y: -3 }} whileTap={{ scale: .97 }}>Go to your dashboard <span><ArrowUpRight size={15} /></span></motion.button>
       </motion.section>
 
-      <footer className="landing-footer"><a className="landing-brand" href="#landing-top" onClick={(event) => { event.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}><span className="landing-brand-mark"><Wallet size={16} /></span><span>ledgerly<span className="landing-brand-period">.</span></span></a><span>Make room for a clearer view.</span><button type="button" onClick={onEnter}>Open dashboard <ArrowUpRight size={13} /></button></footer>
+      <footer className="landing-footer"><a className="landing-brand" href="#landing-top" onClick={(event) => { event.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}><span className="landing-brand-mark"><Wallet size={16} /></span><span>roviel<span className="landing-brand-period">.</span></span></a><span>Make room for a clearer view.</span><button type="button" onClick={onEnter}>Open dashboard <ArrowUpRight size={13} /></button></footer>
     </main>
   );
 }
@@ -351,7 +351,7 @@ function App() {
   };
 
   useEffect(() => {
-    localStorage.setItem("ledgerly.transactions.v1", JSON.stringify(transactions.map(({ icon, ...item }) => item)));
+    localStorage.setItem("roviel.transactions.v1", JSON.stringify(transactions.map(({ icon, ...item }) => item)));
   }, [transactions]);
 
   useEffect(() => {
@@ -536,7 +536,7 @@ function App() {
           <span className="brand-mark">
             <Wallet size={20} strokeWidth={1.7} />
           </span>
-          <span className="brand-name">ledgerly<span>.</span></span>
+          <span className="brand-name">roviel<span>.</span></span>
         </a>
         <div className="workspace">
           <div className="workspace-avatar">S</div>
@@ -925,9 +925,9 @@ function App() {
             </div>
           </motion.section>
           <footer className="dashboard-footer">
-            <span>LEDGERLY © 2026</span>
+            <span>ROVIEL © 2026</span>
             <span>Designed for a clearer financial future.</span>
-            <button type="button" className="footer-period" onClick={() => showNotice("Ledgerly is showing your current activity period.")}>
+            <button type="button" className="footer-period" onClick={() => showNotice("Roviel is showing your current activity period.")}>
               <ChevronLeft size={13} /> October 2026 <ChevronRight size={13} />
             </button>
           </footer>

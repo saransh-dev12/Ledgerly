@@ -5,9 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#05070a">
   <meta name="description" content="Understand your money across currencies. Convert with dated reference rates and compare exchange quotes and fees.">
-  <meta name="ledgerly-api" content="">
-  <title>Ledgerly — Give every currency a direction</title>
-  <script src="/ledgerly-api.js" defer></script>
+  <meta name="roviel-api" content="">
+  <title>Roviel — Give every currency a direction</title>
+  <script>
+    // One-time migration from the pre-rename storage namespace.
+    (function () {
+      try {
+        var keys = ['theme', 'transactions.v1', 'api.base', 'api.token', 'currency.directory.v1', 'currency.favourites.v1', 'currency.rates.v1', 'currency.recents.v1'];
+        for (var i = 0; i < keys.length; i += 1) {
+          var oldKey = 'ledgerly.' + keys[i];
+          var nextKey = 'roviel.' + keys[i];
+          var oldValue = localStorage.getItem(oldKey);
+          if (oldValue !== null && localStorage.getItem(nextKey) === null) localStorage.setItem(nextKey, oldValue);
+        }
+      } catch (error) {}
+    })();
+  </script>
+  <script src="/roviel-api.js" defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Archivo:wght@500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -73,7 +87,7 @@
     .slide-cta:hover { gap: 18px; color: #e0eeff; }
     .slide-cta span { font-size: 16px; }
 
-    /* Ledgerly's product preview takes the place of the unrelated editorial photo. */
+    /* Roviel's product preview takes the place of the unrelated editorial photo. */
     .slide-image-mask { position: fixed; top: 15vh; right: max(8vw, 60px); width: min(34vw, 440px); min-width: 330px; z-index: 2; overflow: hidden; clip-path: inset(0 0 100% 0); opacity: 0; transform: translateY(14px); transition: clip-path 1.25s cubic-bezier(.16, 1, .3, 1), opacity .65s ease, transform 1.25s cubic-bezier(.16, 1, .3, 1); pointer-events: none; }
     .slide-image-mask.active { clip-path: inset(0 0 0 0); opacity: 1; transform: translateY(0); }
     .dashboard-card { position: relative; min-height: 326px; padding: 22px 23px 18px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 10px; background: linear-gradient(145deg, rgb(19 22 31 / 95%), rgb(7 9 14 / 94%) 72%); box-shadow: 0 28px 88px rgb(0 0 0 / 55%), inset 0 1px rgb(255 255 255 / 5%); backdrop-filter: blur(16px); }
@@ -1308,9 +1322,9 @@
   <div class="cursor-inner" aria-hidden="true"></div>
   <div class="cursor-outer" aria-hidden="true"></div>
 
-  <main class="cinematic-container" aria-label="Ledgerly overview">
+  <main class="cinematic-container" aria-label="Roviel overview">
     <header class="main-header">
-      <a class="brand" href="#slide-1" aria-label="Ledgerly home">LEDGERLY<span>.</span></a>
+      <a class="brand" href="#slide-1" aria-label="Roviel home">ROVIEL<span>.</span></a>
       <nav class="header-nav" aria-label="Story navigation">
         <a href="#slide-1" class="nav-link">Overview</a><span class="nav-dot" aria-hidden="true"></span>
         <a href="#slide-2" class="nav-link">Clarity</a><span class="nav-dot" aria-hidden="true"></span>
@@ -1336,10 +1350,10 @@
       </div>
     </section>
 
-    <div class="slide-image-mask" id="slide-2-img" aria-label="Illustrative Ledgerly dashboard preview">
+    <div class="slide-image-mask" id="slide-2-img" aria-label="Illustrative Roviel dashboard preview">
       <div class="dashboard-card">
         <div class="preview-head">
-          <span class="preview-mark"><b>FX</b> LEDGERLY <span style="color:#55594f">/</span> OVERVIEW</span>
+          <span class="preview-mark"><b>FX</b> ROVIEL <span style="color:#55594f">/</span> OVERVIEW</span>
           <span class="preview-status">● &nbsp;IN VIEW</span>
         </div>
         <div class="balance-label">TOTAL BALANCE <em>ILLUSTRATIVE</em></div>
@@ -1362,10 +1376,10 @@
       </div>
     </div>
 
-    <div class="slide-image-mask" id="slide-3-img" aria-label="Illustrative Ledgerly activity preview">
+    <div class="slide-image-mask" id="slide-3-img" aria-label="Illustrative Roviel activity preview">
       <div class="dashboard-card">
         <div class="preview-head">
-          <span class="preview-mark"><b>FX</b> LEDGERLY <span style="color:#55594f">/</span> ACTIVITY</span>
+          <span class="preview-mark"><b>FX</b> ROVIEL <span style="color:#55594f">/</span> ACTIVITY</span>
           <span class="preview-status">● &nbsp;LIVE LEDGER</span>
         </div>
         <div class="balance-label">NET THIS MONTH <em>ILLUSTRATIVE</em></div>
@@ -1380,10 +1394,10 @@
       </div>
     </div>
 
-    <div class="slide-image-mask" id="slide-4-img" aria-label="Illustrative Ledgerly goals preview">
+    <div class="slide-image-mask" id="slide-4-img" aria-label="Illustrative Roviel goals preview">
       <div class="dashboard-card">
         <div class="preview-head">
-          <span class="preview-mark"><b>FX</b> LEDGERLY <span style="color:#55594f">/</span> PLAN</span>
+          <span class="preview-mark"><b>FX</b> ROVIEL <span style="color:#55594f">/</span> PLAN</span>
           <span class="preview-status">● &nbsp;ON TRACK</span>
         </div>
         <div class="balance-label">MONTHLY SET-ASIDE <em>ILLUSTRATIVE</em></div>
@@ -1424,7 +1438,7 @@
     <section class="slide" id="slide-4" aria-labelledby="title-4">
       <span class="slide-kicker">Move with intent</span>
       <h2 class="slide-title" id="title-4">Make the next<br>step yours.</h2>
-      <p class="slide-desc">Set a goal, keep a buffer, or simply check in. Ledgerly gives you room to decide.</p>
+      <p class="slide-desc">Set a goal, keep a buffer, or simply check in. Roviel gives you room to decide.</p>
       <a class="slide-cta" href="#dashboard" aria-controls="dashboard-view">Open your dashboard <span aria-hidden="true">↗</span></a>
     </section>
   </main>
@@ -1440,10 +1454,10 @@
       <div class="story-dashes"><div class="story-dash"><div class="story-dash-fill" id="dash-fill-1"></div></div><div class="story-dash"><div class="story-dash-fill" id="dash-fill-2"></div></div><div class="story-dash"><div class="story-dash-fill" id="dash-fill-3"></div></div><div class="story-dash"><div class="story-dash-fill" id="dash-fill-4"></div></div></div>
     </div>
   </div>
-  <section class="dashboard-view" id="dashboard-view" aria-label="Ledgerly dashboard" aria-hidden="true">
+  <section class="dashboard-view" id="dashboard-view" aria-label="Roviel dashboard" aria-hidden="true">
     <div class="dash-layout">
       <aside class="dash-sidebar">
-        <a href="#dashboard" class="dash-brand" aria-label="Ledgerly demo dashboard"><span class="dash-brand-mark">L</span> LEDGERLY<span style="color:#E9C98A">.</span></a>
+        <a href="#dashboard" class="dash-brand" aria-label="Roviel demo dashboard"><span class="dash-brand-mark">R</span> ROVIEL<span style="color:#E9C98A">.</span></a>
         <p class="dash-workspace" id="dash-workspace-label">Local demo · INR sample data</p>
         <nav class="dash-side-nav" aria-label="Dashboard views">
           <button class="dash-side-link active" type="button" data-view="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></svg>Overview</button>
@@ -1481,7 +1495,7 @@
             <div class="view-head-copy">
               <span class="view-kicker">Overview</span>
               <h1>Every currency you hold, on one page.</h1>
-              <p>Ledgerly keeps your balances, spending and savings in their original currencies, then shows what they are worth in your home currency. Add a transaction to begin — everything stays editable.</p>
+              <p>Roviel keeps your balances, spending and savings in their original currencies, then shows what they are worth in your home currency. Add a transaction to begin — everything stays editable.</p>
             </div>
             <div class="view-head-actions">
               <button class="dash-secondary" type="button" id="open-pulse-cta">View rates</button>
@@ -1686,7 +1700,7 @@
         </section>
         <section class="currency-tool-card quote-tool-card" aria-labelledby="quote-heading">
           <div class="currency-tool-card-heading"><div><span class="currency-tools-kicker">FOREX MARKUP &amp; FEES</span><h3 id="quote-heading">Compare a provider quote</h3></div><span class="estimate-badge">ESTIMATE</span></div>
-          <p class="currency-quote-intro">Enter the rate your provider offered. Ledgerly never fills it in for you.</p>
+          <p class="currency-quote-intro">Enter the rate your provider offered. Roviel never fills it in for you.</p>
           <label class="currency-field quote-rate-field"><span>Provider quote rate <small id="provider-pair-label">USD → EUR</small></span><input id="provider-rate" type="number" min="0" step="any" inputmode="decimal" placeholder="Enter provider rate"></label>
           <div class="currency-fee-inputs quote-context-inputs"><label class="currency-field"><span>Provider label <small>Optional</small></span><input id="provider-label" type="text" maxlength="60" placeholder="Bank, card, or exchange"></label><label class="currency-field"><span>Quote date <small>Optional</small></span><input id="provider-date" type="date"></label></div>
           <div class="currency-fee-inputs">
@@ -1703,7 +1717,7 @@
   </dialog>
   <div class="auth-modal" id="auth-modal" aria-hidden="true">
     <form class="auth-form" id="auth-form" novalidate>
-      <h2>Sign in to Ledgerly</h2><p>Cloud sync via Postgres. Demo still works offline.</p>
+      <h2>Sign in to Roviel</h2><p>Cloud sync via Postgres. Demo still works offline.</p>
       <input id="auth-email" type="email" placeholder="you@example.com" required autocomplete="email">
       <input id="auth-password" type="password" placeholder="Password (min 8)" required autocomplete="current-password">
       <div class="auth-error" id="auth-error" role="alert"></div>
@@ -1715,7 +1729,7 @@
 
   <script type="module">
     // Vercel injects VITE_API_URL at build time; local dev falls back to :4000.
-    if (import.meta.env && import.meta.env.VITE_API_URL) window.__LEDGERLY_API__ = import.meta.env.VITE_API_URL;
+    if (import.meta.env && import.meta.env.VITE_API_URL) window.__ROVIEL_API__ = import.meta.env.VITE_API_URL;
     const THREE_MODULE_URL = 'https://unpkg.com/three@0.160.0/build/three.module.js';
     const GLTF_LOADER_URL = 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
     let THREE = null;
@@ -1738,7 +1752,7 @@
       return true;
     }).catch(error => {
       document.documentElement.classList.add('no-webgl');
-      console.info('Ledgerly visual effects are unavailable; the page will use its accessible fallback.', error);
+      console.info('Roviel visual effects are unavailable; the page will use its accessible fallback.', error);
       return false;
     });
 
@@ -1860,7 +1874,7 @@
       ctx.textBaseline = 'middle';
       ctx.font = '600 42px Arial, sans-serif';
       ctx.letterSpacing = '12px';
-      ctx.fillText('LEDGERLY', center, 1150);
+      ctx.fillText('ROVIEL', center, 1150);
       const texture = new THREE.CanvasTexture(face);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.generateMipmaps = true;
@@ -2033,7 +2047,7 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.3;
-        canvas.__ledgerlyRenderer = renderer;
+        canvas.__rovielRenderer = renderer;
       } catch (error) {
         document.body.classList.add('no-webgl');
         throw error;
@@ -2136,7 +2150,7 @@
 
     function readTransactions() {
       try {
-        const saved = localStorage.getItem('ledgerly.transactions.v1');
+        const saved = localStorage.getItem('roviel.transactions.v1');
         if (saved) {
           const items = JSON.parse(saved);
           if (Array.isArray(items)) {
@@ -2157,7 +2171,7 @@
           }
         }
       } catch (error) {
-        console.info('Using Ledgerly sample activity because saved data could not be read.', error);
+        console.info('Using Roviel sample activity because saved data could not be read.', error);
       }
       return defaultTransactions.map(item => ({ ...item }));
     }
@@ -2193,7 +2207,7 @@
     }
 
     function currentSummary() {
-      const cloud = !!(window.LedgerlyAPI && window.LedgerlyAPI.isCloud());
+      const cloud = !!(window.RovielAPI && window.RovielAPI.isCloud());
       return cloud ? (dashState.summary || emptySummary()) : localSummary();
     }
 
@@ -2225,7 +2239,7 @@
       const note = document.getElementById('smart-insight');
       if (!box) return;
       const summary = currentSummary();
-      const cloud = !!(window.LedgerlyAPI && window.LedgerlyAPI.isCloud());
+      const cloud = !!(window.RovielAPI && window.RovielAPI.isCloud());
       const byCat = {};
       if (cloud) {
         (summary.categories || []).forEach(item => { byCat[item.category] = Number(item.amountMajor) || 0; });
@@ -2268,18 +2282,18 @@
       const blob = new Blob(['\ufeff' + rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
       const stamp = new Date().toISOString().slice(0, 10);
-      a.href = URL.createObjectURL(blob); a.download = `ledgerly-transactions-${stamp}.csv`; a.click();
+      a.href = URL.createObjectURL(blob); a.download = `roviel-transactions-${stamp}.csv`; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       showDashboardToast('Exported CSV with original currencies and minor units.');
     }
 
     async function deleteTransactionItem(id) {
-      if (window.LedgerlyCloud && window.LedgerlyCloud.removeTransaction) {
-        const handled = await window.LedgerlyCloud.removeTransaction(id);
+      if (window.RovielCloud && window.RovielCloud.removeTransaction) {
+        const handled = await window.RovielCloud.removeTransaction(id);
         if (handled) return;
       }
       transactions = transactions.filter(t => String(t.id) !== String(id));
-      try { localStorage.setItem('ledgerly.transactions.v1', JSON.stringify(transactions)); } catch (err) {}
+      try { localStorage.setItem('roviel.transactions.v1', JSON.stringify(transactions)); } catch (err) {}
       renderDashboard();
       showDashboardToast('Transaction removed.');
     }
@@ -2382,7 +2396,7 @@
       document.querySelector('.contact-btn').focus({ preventScroll: true });
     }
 
-    function notifySessionExpired() { window.dispatchEvent(new Event('ledgerly:session-expired')); }
+    function notifySessionExpired() { window.dispatchEvent(new Event('roviel:session-expired')); }
 
     function showDashboardToast(message) {
       const toast = document.getElementById('dashboard-toast');
@@ -2414,7 +2428,7 @@
       });
       const crumb = document.querySelector('.dash-breadcrumb strong');
       if (crumb) crumb.textContent = VIEW_TITLES[name];
-      const cloud = !!(window.LedgerlyAPI && window.LedgerlyAPI.isCloud());
+      const cloud = !!(window.RovielAPI && window.RovielAPI.isCloud());
       const label = document.getElementById('dash-workspace-label');
       if (label) label.textContent = (cloud ? 'Cloud workspace' : 'Local demo') + ' · ' + VIEW_TITLES[name];
       const mode = document.getElementById('dash-mode-label');
@@ -2422,7 +2436,7 @@
       const scroller = document.getElementById('dashboard-view');
       if (scroller) scroller.scrollTo({ top: 0, behavior: 'auto' });
     }
-    window.LedgerlyShowView = showView;
+    window.RovielShowView = showView;
 
     let editingTransactionId = null;
     function openTransactionModal(item) {
@@ -2448,7 +2462,7 @@
         title.textContent = 'Add a transaction';
         form.reset();
         document.getElementById('category-field').style.display = 'grid';
-        window.LedgerlyCloud?.updateAmountLabel?.();
+        window.RovielCloud?.updateAmountLabel?.();
       }
       const modal = document.getElementById('transaction-modal');
       modal.classList.add('open');
@@ -2465,7 +2479,7 @@
       document.getElementById('transaction-form').reset();
       document.getElementById('category-field').style.display = 'grid';
       document.getElementById('transaction-form-title').textContent = 'Add a transaction';
-      window.LedgerlyCloud?.updateAmountLabel?.();
+      window.RovielCloud?.updateAmountLabel?.();
     }
 
     function decimalParts(value) {
@@ -2626,10 +2640,10 @@
       const copyButton = document.getElementById('copy-conversion');
       const shareButton = document.getElementById('share-conversion');
       const savePairButton = document.getElementById('save-pair');
-      const currenciesCacheKey = 'ledgerly.currency.directory.v1';
-      const ratesCacheKey = 'ledgerly.currency.rates.v1';
-      const favouritesKey = 'ledgerly.currency.favourites.v1';
-      const recentsKey = 'ledgerly.currency.recents.v1';
+      const currenciesCacheKey = 'roviel.currency.directory.v1';
+      const ratesCacheKey = 'roviel.currency.rates.v1';
+      const favouritesKey = 'roviel.currency.favourites.v1';
+      const recentsKey = 'roviel.currency.recents.v1';
       let currencies = readCurrencyStorage(currenciesCacheKey, CURRENCY_FALLBACKS);
       let directoryLoaded = Array.isArray(currencies) && currencies.length > CURRENCY_FALLBACKS.length;
       let rateRecord = null;
@@ -2985,17 +2999,17 @@
           if (currentRequest !== requestNumber) return;
           if (error.name === 'AbortError') return;
           // Backend relay fallback: our API caches Frankfurter observations in Postgres.
-          if (window.LedgerlyAPI && window.LedgerlyAPI.base) {
+          if (window.RovielAPI && window.RovielAPI.base) {
             try {
-              const relay = await window.LedgerlyAPI.fxRate(from, to);
+              const relay = await window.RovielAPI.fxRate(from, to);
               if (relay && Number.isFinite(Number(relay.rate)) && Number(relay.rate) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(relay.date || '')) {
-                rateRecord = { base: from, quote: to, rate: Number(relay.rate), date: relay.date, source: relay.source || 'ledgerly-api' };
+                rateRecord = { base: from, quote: to, rate: Number(relay.rate), date: relay.date, source: relay.source || 'roviel-api' };
                 rateState = 'reference';
                 rateError = '';
                 if (sourceText) {
                   sourceText.textContent = relay.source === 'wide-coverage'
-                    ? 'Wide-coverage reference rate (Exchangerate-API) via the Ledgerly rate service. Informational only — not a guaranteed provider quote.'
-                    : 'Frankfurter blended reference rates from central banks and official sources, relayed by Ledgerly. These are informational rates, not guaranteed provider quotes.';
+                    ? 'Wide-coverage reference rate (Exchangerate-API) via the Roviel rate service. Informational only — not a guaranteed provider quote.'
+                    : 'Frankfurter blended reference rates from central banks and official sources, relayed by Roviel. These are informational rates, not guaranteed provider quotes.';
                 }
                 cache[pair] = { base: from, quote: to, rate: rateRecord.rate, date: rateRecord.date };
                 writeCurrencyStorage(ratesCacheKey, cache);
@@ -3080,7 +3094,7 @@
         const text = currentConversionText();
         if (!text) return;
         try {
-          if (navigator.share) await navigator.share({ title: 'Ledgerly currency conversion', text });
+          if (navigator.share) await navigator.share({ title: 'Roviel currency conversion', text });
           else await copyText(text);
         } catch (error) {
           if (error.name !== 'AbortError') showFeedback('Sharing is unavailable in this browser.');
@@ -3112,7 +3126,7 @@
         event.preventDefault();
         closeDashboard(true);
       }));
-      document.querySelectorAll('[data-view]').forEach(btn => btn.addEventListener('click', () => window.LedgerlyShowView(btn.dataset.view)));
+      document.querySelectorAll('[data-view]').forEach(btn => btn.addEventListener('click', () => window.RovielShowView(btn.dataset.view)));
       document.getElementById('open-transaction').addEventListener('click', () => openTransactionModal());
       document.getElementById('open-transaction-2')?.addEventListener('click', () => openTransactionModal());
       document.getElementById('open-pulse-cta')?.addEventListener('click', () => showView('pulse'));
@@ -3142,8 +3156,8 @@
         const category = type === 'income' ? 'Income' : String(data.get('category') || 'Other');
 
         if (editingTransactionId) {
-          if (window.LedgerlyCloud && typeof window.LedgerlyCloud.updateTransaction === 'function') {
-            const updated = await window.LedgerlyCloud.updateTransaction(editingTransactionId, { amountMajor: amount, note: name, category, kind: type });
+          if (window.RovielCloud && typeof window.RovielCloud.updateTransaction === 'function') {
+            const updated = await window.RovielCloud.updateTransaction(editingTransactionId, { amountMajor: amount, note: name, category, kind: type });
             if (updated) { closeTransactionModal(); return; }
           }
           const index = transactions.findIndex(item => String(item.id) === String(editingTransactionId));
@@ -3154,7 +3168,7 @@
               amount: type === 'income' ? amount : -amount,
               home: existing.currency === dashState.homeCurrency ? (type === 'income' ? amount : -amount) : existing.home,
             };
-            try { localStorage.setItem('ledgerly.transactions.v1', JSON.stringify(transactions)); } catch {}
+            try { localStorage.setItem('roviel.transactions.v1', JSON.stringify(transactions)); } catch {}
           }
           closeTransactionModal();
           renderDashboard();
@@ -3163,8 +3177,8 @@
         }
 
         // Cloud first (authoritative), local ledger as the offline fallback.
-        if (window.LedgerlyCloud && typeof window.LedgerlyCloud.saveTransaction === 'function') {
-          const saved = await window.LedgerlyCloud.saveTransaction({ name, amount, type, category });
+        if (window.RovielCloud && typeof window.RovielCloud.saveTransaction === 'function') {
+          const saved = await window.RovielCloud.saveTransaction({ name, amount, type, category });
           if (saved) {
             form.reset();
             document.getElementById('category-field').style.display = 'grid';
@@ -3186,7 +3200,7 @@
           type
         });
         try {
-          localStorage.setItem('ledgerly.transactions.v1', JSON.stringify(transactions));
+          localStorage.setItem('roviel.transactions.v1', JSON.stringify(transactions));
         } catch (error) {
           console.info('This browser session does not allow saving activity.', error);
         }
@@ -3317,7 +3331,7 @@
       link.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
     });
 
-    const LedgerlyThemes = {
+    const RovielThemes = {
       noir: {
         label: 'NOIR',
         bg: '#08090b', accent: '#c6f432',
@@ -3334,15 +3348,15 @@
       },
     };
     let currentTheme = 'brutal';
-    const theme = () => LedgerlyThemes[currentTheme];
+    const theme = () => RovielThemes[currentTheme];
     function applyTheme(name) {
-      if (!LedgerlyThemes[name]) name = 'noir';
+      if (!RovielThemes[name]) name = 'noir';
       currentTheme = name;
       document.documentElement.setAttribute('data-theme', name);
-      try { localStorage.setItem('ledgerly.theme', name); } catch (error) {}
+      try { localStorage.setItem('roviel.theme', name); } catch (error) {}
       document.querySelectorAll('[data-theme-toggle]').forEach(button => {
-        button.textContent = LedgerlyThemes[name].label === 'BRUTAL' ? 'NOIR' : 'BRUTAL';
-        button.setAttribute('aria-label', 'Switch to ' + (LedgerlyThemes[name].label === 'BRUTAL' ? 'noir' : 'brutalist') + ' theme');
+        button.textContent = RovielThemes[name].label === 'BRUTAL' ? 'NOIR' : 'BRUTAL';
+        button.setAttribute('aria-label', 'Switch to ' + (RovielThemes[name].label === 'BRUTAL' ? 'noir' : 'brutalist') + ' theme');
       });
       rebuildScene();
     }
@@ -3368,7 +3382,7 @@
 
     function setupThemeSwitch() {
       let saved = 'brutal';
-      try { saved = localStorage.getItem('ledgerly.theme') || 'brutal'; } catch (error) {}
+      try { saved = localStorage.getItem('roviel.theme') || 'brutal'; } catch (error) {}
       applyTheme(saved);
       document.addEventListener('click', event => {
         const target = event.target instanceof Element ? event.target.closest('[data-theme-toggle]') : null;
@@ -3376,11 +3390,11 @@
       });
     }
 
-    function setupLedgerlyCloud() {
+    function setupRovielCloud() {
       // Additive cloud layer — never breaks local demo. API base from meta or localStorage.
-      const metaBase = (document.querySelector('meta[name="ledgerly-api"]') || {}).content || '';
-      if (metaBase && !localStorage.getItem('ledgerly.api.base')) localStorage.setItem('ledgerly.api.base', metaBase);
-      const api = () => window.LedgerlyAPI;
+      const metaBase = (document.querySelector('meta[name="roviel-api"]') || {}).content || '';
+      if (metaBase && !localStorage.getItem('roviel.api.base')) localStorage.setItem('roviel.api.base', metaBase);
+      const api = () => window.RovielAPI;
       const status = document.getElementById('cloud-status');
       const accountSel = document.getElementById('cloud-account');
       const authModal = document.getElementById('auth-modal');
@@ -3393,7 +3407,7 @@
         expiring = true;
         try { api()?.logout(); } catch {}
         cloudAccounts = []; dashState.summary = null;
-        try { transactions = JSON.parse(localStorage.getItem('ledgerly.transactions.v1') || 'null') || transactions; } catch {}
+        try { transactions = JSON.parse(localStorage.getItem('roviel.transactions.v1') || 'null') || transactions; } catch {}
         refreshStatus(); updateAmountLabel(); renderDashboard();
         showDashboardToast('Session expired. Sign in again.');
         if (authError) authError.textContent = 'Your session expired. Sign in to continue syncing.';
@@ -3401,7 +3415,7 @@
         setTimeout(() => { expiring = false; }, 1500);
       }
       async function cloudFetch(path, opts = {}) {
-        const token = localStorage.getItem('ledgerly.api.token');
+        const token = localStorage.getItem('roviel.api.token');
         const res = await fetch(api().base + path, {
           ...opts,
           headers: { ...(opts.body ? { 'Content-Type': 'application/json' } : {}), Authorization: 'Bearer ' + token, ...(opts.headers || {}) },
@@ -3410,7 +3424,7 @@
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Request failed');
         return res.status === 204 ? null : res.json();
       }
-      window.addEventListener('ledgerly:session-expired', expireSession);
+      window.addEventListener('roviel:session-expired', expireSession);
       function refreshStatus() {
         const on = !!(api() && api().isCloud());
         cloudMode = on;
@@ -3438,7 +3452,7 @@
       function closeAuth() { authModal.classList.remove('open'); authModal.setAttribute('aria-hidden', 'true'); if (authError) authError.textContent = ''; }
       document.getElementById('open-auth-modal')?.addEventListener('click', openAuth);
       document.getElementById('auth-button')?.addEventListener('click', () => {
-        if (api() && api().isCloud()) { api().logout(); cloudAccounts = []; dashState.summary = null; try { transactions = JSON.parse(localStorage.getItem('ledgerly.transactions.v1') || 'null') || transactions; } catch {} refreshStatus(); updateAmountLabel(); renderDashboard(); showDashboardToast('Signed out. Local demo active.'); }
+        if (api() && api().isCloud()) { api().logout(); cloudAccounts = []; dashState.summary = null; try { transactions = JSON.parse(localStorage.getItem('roviel.transactions.v1') || 'null') || transactions; } catch {} refreshStatus(); updateAmountLabel(); renderDashboard(); showDashboardToast('Signed out. Local demo active.'); }
         else openAuth();
       });
       document.getElementById('auth-close')?.addEventListener('click', closeAuth);
@@ -3470,7 +3484,7 @@
         catch (err) { authError.textContent = friendlyAuthError(err); }
       });
       document.getElementById('auth-import')?.addEventListener('click', async () => {
-        try { await api().importDemo(async () => cloudAccounts.length ? cloudAccounts : api().base ? await fetch(api().base + '/api/accounts', { headers: { Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') } }).then(r => r.json()) : []); await loadCloud(); showDashboardToast('Demo imported to cloud.'); }
+        try { await api().importDemo(async () => cloudAccounts.length ? cloudAccounts : api().base ? await fetch(api().base + '/api/accounts', { headers: { Authorization: 'Bearer ' + localStorage.getItem('roviel.api.token') } }).then(r => r.json()) : []); await loadCloud(); showDashboardToast('Demo imported to cloud.'); }
         catch (err) { authError.textContent = String(err.message || err); }
       });
       function updateAmountLabel() {
@@ -3602,7 +3616,7 @@
         const list = document.getElementById('pulse-list');
         const grid = document.getElementById('pulse-grid');
         if (!list) return;
-        if (!api() || !api().base) { list.innerHTML = '<p class="dash-empty">Cloud pulse needs API base. Set meta ledgerly-api or localStorage ledgerly.api.base to enable.</p>'; return; }
+        if (!api() || !api().base) { list.innerHTML = '<p class="dash-empty">Cloud pulse needs API base. Set meta roviel-api or localStorage roviel.api.base to enable.</p>'; return; }
         const pair = (document.getElementById('pulse-pair') || {}).value || 'USD/EUR';
         const [b, q] = pair.split('/');
         try {
@@ -3623,7 +3637,7 @@
             <div class="dash-row"><div class="dash-transaction"><span class="dash-transaction-icon">⇄</span><div><div class="dash-transaction-name">${b} / ${q}</div><div class="dash-transaction-sub">${pts.length ? pts.length + ' points · 30d' : 'Reference rate'}</div></div></div>
             <span class="dash-category">${fmt(rate.rate, q)}</span><span class="dash-date">${rate.date}</span><strong class="dash-amount ${rate.stale ? 'is-stale' : ''}">${rate.stale ? 'STALE' : 'FRESH'}</strong></div>`;
           document.getElementById('pulse-caption').textContent = `Source: ${rate.source === 'wide-coverage' ? 'wide-coverage feed' : 'Frankfurter'} · Reference rates only — not provider quotes.`;
-        } catch { list.innerHTML = '<p class="dash-empty">Pulse unavailable. Set VITE_API_URL / meta ledgerly-api to enable.</p>'; }
+        } catch { list.innerHTML = '<p class="dash-empty">Pulse unavailable. Set VITE_API_URL / meta roviel-api to enable.</p>'; }
       }
       document.getElementById('pulse-pair')?.addEventListener('change', loadPulse);
       accountSel?.addEventListener('change', updateAmountLabel);
@@ -3675,7 +3689,7 @@
         try {
           const res = await fetch(api().base + '/api/transactions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') },
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('roviel.api.token') },
             body: JSON.stringify({ accountId: acctId, kind: payload.type, amountMajor: payload.amount, note: payload.name, category: payload.category }),
           });
           if (res.status === 401) { expireSession(); return true; }
@@ -3691,7 +3705,7 @@
       async function removeTransaction(id) {
         if (!cloudMode || !api() || !api().isCloud()) return false;
         try {
-          const r = await fetch(api().base + '/api/transactions/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') } });
+          const r = await fetch(api().base + '/api/transactions/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('roviel.api.token') } });
           if (r.status === 401) { expireSession(); return true; }
           if (!r.ok) { const j = await r.json().catch(() => ({})); showDashboardToast(j.error || 'Cannot remove linked entry.'); return true; }
           await loadCloud(); showDashboardToast('Removed from cloud.');
@@ -3725,26 +3739,26 @@
         btn.disabled = true;
         try {
           await cloudDelete('/api/auth/account', { password, confirm: 'DELETE' });
-          localStorage.removeItem('ledgerly.api.token');
+          localStorage.removeItem('roviel.api.token');
           cloudAccounts = [];
-          try { transactions = JSON.parse(localStorage.getItem('ledgerly.transactions.v1') || 'null') || transactions; } catch {}
+          try { transactions = JSON.parse(localStorage.getItem('roviel.transactions.v1') || 'null') || transactions; } catch {}
           refreshStatus(); renderDashboard();
           showDashboardToast('Account deleted. Local demo active.');
         } catch (error) { showDashboardToast(String(error.message)); btn.disabled = false; }
       });
-      window.LedgerlyCloud = { loadCloud, loadPulse, refreshStatus, removeTransaction, updateTransaction, showView, saveTransaction, refreshSummary, openDrawer, updateAmountLabel, cloudFetch, cloudPost, cloudPatch, cloudDelete };
+      window.RovielCloud = { loadCloud, loadPulse, refreshStatus, removeTransaction, updateTransaction, showView, saveTransaction, refreshSummary, openDrawer, updateAmountLabel, cloudFetch, cloudPost, cloudPatch, cloudDelete };
       refreshStatus();
-      // Defer until LedgerlyAPI script loads
+      // Defer until RovielAPI script loads
       let tries = 0;
       const wait = setInterval(() => {
         tries++;
-        if (window.LedgerlyAPI && window.LedgerlyAPI.base) { clearInterval(wait); refreshStatus(); loadPulse(); if (window.LedgerlyAPI.isCloud()) loadCloud(); }
+        if (window.RovielAPI && window.RovielAPI.base) { clearInterval(wait); refreshStatus(); loadPulse(); if (window.RovielAPI.isCloud()) loadCloud(); }
         else if (tries > 40) { clearInterval(wait); loadPulse(); }
       }, 150);
     }
 
     /* sound + cursor + snap */
-    const LedgerlySound = (() => {
+    const RovielSound = (() => {
       let ctx = null;
       let enabled = true;
       let bus = null;
@@ -3835,17 +3849,17 @@
       const toggle = document.getElementById('sound-toggle');
       const paint = () => {
         if (!toggle) return;
-        toggle.setAttribute('aria-pressed', LedgerlySound.enabled ? 'true' : 'false');
-        toggle.style.color = LedgerlySound.enabled ? '' : 'var(--faint)';
-        toggle.title = LedgerlySound.enabled ? 'Interface sounds on' : 'Interface sounds off';
+        toggle.setAttribute('aria-pressed', RovielSound.enabled ? 'true' : 'false');
+        toggle.style.color = RovielSound.enabled ? '' : 'var(--faint)';
+        toggle.title = RovielSound.enabled ? 'Interface sounds on' : 'Interface sounds off';
       };
-      toggle?.addEventListener('click', () => { LedgerlySound.toggle(); paint(); });
+      toggle?.addEventListener('click', () => { RovielSound.toggle(); paint(); });
       paint();
       document.addEventListener('click', event => {
         const target = event.target instanceof Element ? event.target : null;
         if (!target) return;
         const control = target.closest('button, a, [role="button"], summary, label[for]');
-        if (control) LedgerlySound.click();
+        if (control) RovielSound.click();
       }, true);
       document.addEventListener('pointerdown', event => {
         const target = event.target instanceof Element ? event.target : null;
@@ -4116,9 +4130,9 @@
     }
 
     async function fetchSummary(months = dashState.range) {
-      if (window.LedgerlyAPI && window.LedgerlyAPI.isCloud() && window.LedgerlyAPI.base) {
+      if (window.RovielAPI && window.RovielAPI.isCloud() && window.RovielAPI.base) {
         try {
-          const res = await fetch(`${window.LedgerlyAPI.base}/api/summary?months=${months}`, { headers: { Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') } });
+          const res = await fetch(`${window.RovielAPI.base}/api/summary?months=${months}`, { headers: { Authorization: 'Bearer ' + localStorage.getItem('roviel.api.token') } });
           if (res.status === 401) { notifySessionExpired(); throw new Error('Session expired. Sign in again.'); }
           if (res.ok) {
             const data = await res.json();
@@ -4343,7 +4357,7 @@
       setupDashboard();
       setupNavigation();
       setupCurrencyTools();
-      setupLedgerlyCloud();
+      setupRovielCloud();
       setupThemeSwitch();
       setupDashboardV2();
       ['#transaction-type', '#transaction-category', '#new-account-cur', '#pulse-pair', '#cloud-account'].forEach(id => enhanceSelect(document.querySelector(id)));
@@ -4363,7 +4377,7 @@
           animate();
         } catch (error) {
           document.documentElement.classList.add('no-webgl');
-          console.warn('Ledgerly background scene could not start:', error);
+          console.warn('Roviel background scene could not start:', error);
         }
       });
       document.documentElement.dataset.appReady = 'true';

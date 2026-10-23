@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ledgerly-api
+    name: roviel-api
     runtime: docker
     rootDir: server
     dockerfilePath: ./Dockerfile

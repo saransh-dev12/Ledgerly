@@ -34,7 +34,7 @@ async function openDashboard(page) {
   await page.waitForSelector('#dashboard-view.open', { timeout: 10000 });
 }
 async function login(page) {
-  await page.evaluate(base => localStorage.setItem('ledgerly.api.base', base), API);
+  await page.evaluate(base => localStorage.setItem('roviel.api.base', base), API);
   await page.click('#auth-button');
   await page.waitForSelector('#auth-modal.open');
   await page.fill('#auth-email', 'demo@ledgerly.app');
@@ -45,7 +45,7 @@ async function login(page) {
 }
 async function api(page, path, options = {}) {
   return page.evaluate(async ({ path, options, API: apiBase }) => {
-    const token = localStorage.getItem('ledgerly.api.token');
+    const token = localStorage.getItem('roviel.api.token');
     const res = await fetch(apiBase + path, { ...options, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(options.headers || {}) } });
     const text = await res.text();
     let body; try { body = JSON.parse(text); } catch { body = text; }
@@ -59,7 +59,7 @@ try {
   const page = await newPage();
   await page.goto(WEB, { waitUntil: 'domcontentloaded' });
   await ready(page);
-  check('landing loads', (await page.title()).includes('Ledgerly'));
+  check('landing loads', (await page.title()).includes('Roviel'));
   check('4 story slides', (await page.locator('.slide').count()) === 4);
   check('sign-in visible on desktop', await page.locator('#open-auth-modal').isVisible());
   await Shot(page, '01-landing');
@@ -93,7 +93,7 @@ try {
   check('theme switch error free', errors.length === 0, errors.slice(0, 2).join(' | '));
   const sceneBound = () => page.evaluate(() => {
     const canvas = document.querySelector('#webgl');
-    return !!canvas && !!canvas.__ledgerlyRenderer && canvas.__ledgerlyRenderer.domElement === canvas;
+    return !!canvas && !!canvas.__rovielRenderer && canvas.__rovielRenderer.domElement === canvas;
   });
   check('coin scene survives theme switch', await sceneBound());
   await page.click('[data-theme-toggle]');
