@@ -45,8 +45,18 @@
     exportTransactions: () => req('/api/transactions/export'),
     createTransaction: (b) => req('/api/transactions', { method: 'POST', body: JSON.stringify(b) }),
     transfer: (b) => req('/api/transactions/transfer', { method: 'POST', body: JSON.stringify(b) }),
-    fxRate: (b, q, d) => fetch(getBase() + `/api/fx/rate?base=${b}&quote=${q}${d ? `&date=${d}` : ''}`).then(r => r.json()),
-    fxHistory: (b, q, days) => fetch(getBase() + `/api/fx/history?base=${b}&quote=${q}&days=${days || 30}`).then(r => r.json()),
+    async fxRate(b, q, d) {
+      const r = await fetch(getBase() + `/api/fx/rate?base=${b}&quote=${q}${d ? `&date=${d}` : ''}`);
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(body.error || `Reference rate unavailable (${r.status}).`);
+      return body;
+    },
+    async fxHistory(b, q, days) {
+      const r = await fetch(getBase() + `/api/fx/history?base=${b}&quote=${q}&days=${days || 30}`);
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(body.error || `Rate history unavailable (${r.status}).`);
+      return body;
+    },
     insights: () => req('/api/insights'),
     // One-click demo import: pushes localStorage demo txs to cloud account
     async importDemo(getAccounts) {

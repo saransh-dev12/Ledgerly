@@ -117,6 +117,7 @@
     .preview-row-name { overflow: hidden; color: #e6e8df; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
     .preview-row-meta { color: #7b8074; font-size: 7px; letter-spacing: .7px; text-transform: uppercase; }
     .preview-row-amount { grid-row: span 2; align-self: center; color: #d9dcd2; font-family: var(--mono); font-size: 10.5px; }
+    [hidden] { display: none !important; }
     .preview-row-amount.is-in { color: var(--accent); }
     .preview-row-amount.is-out { color: #b9bdb0; }
     .preview-goals { display: grid; gap: 11px; margin-top: 15px; }
@@ -1266,6 +1267,28 @@
     .pulse-tile-label { color: var(--faint); font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; text-transform: uppercase; }
     .pulse-tile strong { color: var(--text); font-family: var(--mono); font-size: 16px; font-weight: 500; }
     .pulse-tile small { color: var(--muted); font-size: 9.5px; }
+    .pulse-chart-card { margin-top: 14px; padding: 15px 16px 12px; border: 1px solid var(--line); border-radius: 10px; background: rgb(255 255 255 / 2%); }
+    .pulse-chart-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--faint); font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.1px; text-transform: uppercase; }
+    .pulse-chart-head span:last-child { color: var(--muted); text-align: right; text-transform: none; letter-spacing: .3px; }
+    .pulse-chart-wrap { position: relative; height: 170px; margin-top: 12px; }
+    .pulse-chart { width: 100%; height: 100%; outline: none; }
+    .pulse-chart:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+    .pulse-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .pulse-chart .pulse-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+    .pulse-chart .pulse-area { fill: var(--accent); opacity: .12; }
+    .pulse-chart .pulse-grid-line { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .pulse-chart .pulse-axis { fill: var(--faint); font-family: var(--mono); font-size: 8px; }
+    .pulse-chart .pulse-crosshair { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: .55; }
+    .pulse-chart .pulse-marker { fill: var(--accent); stroke: var(--surface); stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .pulse-tooltip { position: absolute; z-index: 4; display: grid; gap: 3px; min-width: 130px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 7px; color: var(--text); background: #0c0e11; box-shadow: 0 12px 30px rgb(0 0 0 / 45%); font-size: 10px; pointer-events: none; transform: translate(-50%, -105%); }
+    .pulse-tooltip strong { color: var(--text); font-family: var(--mono); font-size: 9.5px; }
+    .pulse-tooltip span { color: var(--muted); }
+    .pulse-detail { min-height: 15px; margin-top: 9px; color: var(--muted); font-family: var(--mono); font-size: 9px; line-height: 1.45; }
+    [data-theme="brutal"] .pulse-chart-card { border: 2px solid #16130f; border-radius: 0; background: #fff; }
+    [data-theme="brutal"] .pulse-chart-head span:last-child, [data-theme="brutal"] .pulse-detail { color: #4a463d; }
+    [data-theme="brutal"] .pulse-tooltip { border: 2px solid #16130f; border-radius: 0; color: #16130f; background: #fbf9f2; box-shadow: 5px 5px 0 #16130f; }
+    [data-theme="brutal"] .pulse-tooltip strong { color: #16130f; }
+    [data-theme="brutal"] .pulse-tooltip span { color: #4a463d; }
     .dash-amount.is-stale { color: var(--amber); }
     [data-theme="brutal"] .pulse-tile { border: 2px solid #16130f; border-radius: 0; background: #fff; }
     [data-theme="brutal"] .pulse-tile strong { color: #16130f; }
@@ -1580,6 +1603,14 @@
           <section class="dash-card dash-activity" id="cloud-pulse">
             <div class="dash-activity-top"><div><h2>Watch a pair</h2><p id="pulse-caption">Reference rates only — not provider quotes.</p></div><div class="dash-activity-tools"><select class="dash-filter" id="pulse-pair" aria-label="Pulse pair"></select></div></div>
             <div class="pulse-grid" id="pulse-grid" aria-live="polite"></div>
+            <div class="pulse-chart-card">
+              <div class="pulse-chart-head"><span>30-day path</span><span id="pulse-chart-meta">Reference history</span></div>
+              <div class="pulse-chart-wrap">
+                <div class="pulse-chart" id="pulse-chart" tabindex="0" role="img" aria-label="Currency history chart. Use arrow keys to inspect a day."></div>
+                <div class="pulse-tooltip" id="pulse-tooltip" hidden></div>
+              </div>
+              <p class="pulse-detail" id="pulse-detail" aria-live="polite">Focus the chart and use the arrow keys to inspect a day.</p>
+            </div>
             <div class="dash-list" id="pulse-list"></div>
           </section>
           </div>
@@ -3845,18 +3876,143 @@
         const wrapper = select.closest('.select');
         if (wrapper && wrapper.refresh) wrapper.refresh();
       }
+      const pulseChart = document.getElementById('pulse-chart');
+      const pulseTooltip = document.getElementById('pulse-tooltip');
+      const pulseDetail = document.getElementById('pulse-detail');
+      const pulseMeta = document.getElementById('pulse-chart-meta');
+      let pulseRequest = 0;
+      let pulseState = { data: [], coords: [], selected: -1, base: '', quote: '', width: 700, height: 180 };
+      function renderPulseChart(base, quote, points) {
+        if (!pulseChart) return;
+        pulseTooltip.hidden = true;
+        pulseState = { data: [], coords: [], selected: -1, base, quote, width: 700, height: 180 };
+        const data = points
+          .map(([date, value]) => ({ date, value: Number(value) }))
+          .filter(item => Number.isFinite(item.value) && item.value > 0);
+        if (data.length < 2) {
+          pulseChart.innerHTML = '<p class="dash-empty">Not enough dated history for a chart yet.</p>';
+          pulseMeta.textContent = `${data.length} observation${data.length === 1 ? '' : 's'}`;
+          pulseDetail.textContent = 'A chart appears after at least two dated observations.';
+          pulseChart.setAttribute('aria-label', `${base}/${quote} history is not available yet.`);
+          return;
+        }
+        const W = 700, H = 180, padL = 10, padR = 10, padT = 18, padB = 24;
+        const values = data.map(item => item.value);
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const span = max - min || Math.max(max * 0.01, 0.0000001);
+        const x = index => padL + (index / (data.length - 1)) * (W - padL - padR);
+        const y = value => padT + (1 - (value - min) / span) * (H - padT - padB);
+        const coords = data.map((item, index) => ({ x: x(index), y: y(item.value), ...item, index }));
+        const line = coords.map((point, index) => `${index ? 'L' : 'M'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
+        const area = `${line} L${(W - padR).toFixed(1)} ${H - padB} L${padL} ${H - padB} Z`;
+        const grid = [0, 0.5, 1].map(fraction => {
+          const value = min + (max - min) * fraction;
+          const top = y(value).toFixed(1);
+          return `<line x1="${padL}" x2="${W - padR}" y1="${top}" y2="${top}" class="pulse-grid-line" /><text x="${W - padR}" y="${Number(top) - 4}" text-anchor="end" class="pulse-axis">${formatRate(value)}</text>`;
+        }).join('');
+        const labelIndexes = [...new Set([0, Math.floor((data.length - 1) / 2), data.length - 1])];
+        const labels = labelIndexes.map(index => `<text x="${coords[index].x.toFixed(1)}" y="${H - 6}" text-anchor="${index === 0 ? 'start' : index === data.length - 1 ? 'end' : 'middle'}" class="pulse-axis">${escapeHtml(data[index].date.slice(5))}</text>`).join('');
+        pulseChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <path d="${area}" class="pulse-area" />
+          <path d="${line}" class="pulse-line" />
+          ${grid}${labels}
+          <line id="pulse-crosshair" class="pulse-crosshair" x1="0" x2="0" y1="${padT}" y2="${H - padB}" hidden />
+          <circle id="pulse-marker" class="pulse-marker" cx="0" cy="0" r="4" hidden />
+        </svg>`;
+        const changePct = ((data[data.length - 1].value - data[0].value) / data[0].value) * 100;
+        pulseMeta.textContent = `High ${formatRate(max)} · Low ${formatRate(min)} · ${data.length} observations`;
+        pulseChart.setAttribute('aria-label', `${base}/${quote} ${data.length}-day chart. Latest ${data[data.length - 1].date}: 1 ${base} equals ${formatRate(data[data.length - 1].value)} ${quote}. High ${formatRate(max)}, low ${formatRate(min)}, change ${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)} percent. Use left and right arrow keys to inspect a day.`);
+        pulseDetail.textContent = `Hover, tap or focus the chart to inspect a day. Latest ${data[data.length - 1].date}: 1 ${base} = ${formatRate(data[data.length - 1].value)} ${quote}.`;
+        pulseState = { data, coords, selected: -1, base, quote, width: W, height: H };
+      }
+      function showPulsePoint(index) {
+        if (!pulseState.data.length) return;
+        const selected = Math.max(0, Math.min(pulseState.data.length - 1, index));
+        pulseState.selected = selected;
+        const point = pulseState.coords[selected];
+        const crosshair = pulseChart.querySelector('#pulse-crosshair');
+        const marker = pulseChart.querySelector('#pulse-marker');
+        if (crosshair) {
+          crosshair.hidden = false;
+          crosshair.setAttribute('x1', point.x.toFixed(1));
+          crosshair.setAttribute('x2', point.x.toFixed(1));
+        }
+        if (marker) {
+          marker.hidden = false;
+          marker.setAttribute('cx', point.x.toFixed(1));
+          marker.setAttribute('cy', point.y.toFixed(1));
+        }
+        const previous = pulseState.data[selected - 1];
+        const change = previous ? ((point.value - previous.value) / previous.value) * 100 : null;
+        const changeLabel = change === null ? 'First observation' : `${change >= 0 ? '+' : ''}${change.toFixed(2)}% vs previous day`;
+        pulseTooltip.hidden = false;
+        pulseTooltip.innerHTML = `<strong>${escapeHtml(point.date)}</strong><span>1 ${escapeHtml(pulseState.base)} = ${escapeHtml(formatRate(point.value))} ${escapeHtml(pulseState.quote)}</span><span>${escapeHtml(changeLabel)}</span><span>${selected + 1} / ${pulseState.data.length}</span>`;
+        pulseTooltip.style.left = `${Math.min(88, Math.max(12, (point.x / pulseState.width) * 100))}%`;
+        pulseTooltip.style.top = `${Math.min(92, Math.max(8, (point.y / pulseState.height) * 100))}%`;
+        pulseTooltip.style.transform = point.y < pulseState.height * 0.4 ? 'translate(-50%, 12px)' : 'translate(-50%, -105%)';
+        pulseDetail.textContent = `${point.date}: 1 ${pulseState.base} = ${formatRate(point.value)} ${pulseState.quote} · ${changeLabel}`;
+      }
+      if (pulseChart && pulseChart.dataset.bound !== 'true') {
+        pulseChart.dataset.bound = 'true';
+        const nearestIndex = event => {
+          if (!pulseState.data.length) return -1;
+          const rect = pulseChart.getBoundingClientRect();
+          const x = ((event.clientX - rect.left) / Math.max(1, rect.width)) * pulseState.width;
+          return pulseState.coords.reduce((best, point, index) => Math.abs(point.x - x) < Math.abs(pulseState.coords[best].x - x) ? index : best, 0);
+        };
+        pulseChart.addEventListener('pointermove', event => { const index = nearestIndex(event); if (index >= 0) showPulsePoint(index); });
+        pulseChart.addEventListener('pointerdown', event => { const index = nearestIndex(event); if (index >= 0) showPulsePoint(index); });
+        pulseChart.addEventListener('pointerleave', () => { pulseTooltip.hidden = true; });
+        pulseChart.addEventListener('focus', () => { if (pulseState.selected < 0) showPulsePoint(pulseState.data.length - 1); });
+        pulseChart.addEventListener('blur', () => { pulseTooltip.hidden = true; });
+        pulseChart.addEventListener('keydown', event => {
+          if (!pulseState.data.length) return;
+          const current = pulseState.selected < 0 ? pulseState.data.length - 1 : pulseState.selected;
+          let next = current;
+          if (event.key === 'ArrowLeft') next = current - 1;
+          else if (event.key === 'ArrowRight') next = current + 1;
+          else if (event.key === 'Home') next = 0;
+          else if (event.key === 'End') next = pulseState.data.length - 1;
+          else return;
+          event.preventDefault();
+          showPulsePoint(next);
+        });
+      }
+      function pulseUnavailable(message) {
+        if (pulseChart) {
+          pulseChart.innerHTML = '<p class="dash-empty">History unavailable.</p>';
+          pulseChart.setAttribute('aria-label', 'Currency history unavailable.');
+        }
+        const grid = document.getElementById('pulse-grid');
+        if (grid) grid.innerHTML = '';
+        if (pulseMeta) pulseMeta.textContent = 'Unavailable';
+        if (pulseDetail) pulseDetail.textContent = message;
+        const caption = document.getElementById('pulse-caption');
+        if (caption) caption.textContent = 'Pulse unavailable — reference rates could not be loaded.';
+        pulseState = { data: [], coords: [], selected: -1, base: '', quote: '', width: 700, height: 180 };
+      }
       async function loadPulse() {
         fillPulsePairs();
         const list = document.getElementById('pulse-list');
         const grid = document.getElementById('pulse-grid');
         if (!list) return;
-        if (!api() || !api().base) { list.innerHTML = '<p class="dash-empty">Cloud pulse needs API base. Set meta roviel-api or localStorage roviel.api.base to enable.</p>'; return; }
+        if (!api() || !api().base) {
+          list.innerHTML = '<p class="dash-empty">Cloud pulse needs API base. Set meta roviel-api or localStorage roviel.api.base to enable.</p>';
+          pulseUnavailable('The API base is not configured.');
+          return;
+        }
         const pair = (document.getElementById('pulse-pair') || {}).value || 'USD/EUR';
         const [b, q] = pair.split('/');
+        const request = ++pulseRequest;
+        if (grid) grid.innerHTML = '<div class="pulse-tile"><span class="pulse-tile-label">Loading</span><strong>Reference rates</strong><small>Fetching the latest observation…</small></div>';
+        list.innerHTML = '<p class="dash-empty">Loading the 30-day history…</p>';
         try {
           const [rate, hist] = await Promise.all([api().fxRate(b, q), api().fxHistory(b, q, 30).catch(() => null)]);
+          if (request !== pulseRequest) return;
+          if (!rate || !(Number(rate.rate) > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(rate.date || '')) throw new Error('The rate provider returned an incomplete quote.');
           const pts = hist && hist.rates ? Object.entries(hist.rates).sort(([a], [c]) => a.localeCompare(c)) : [];
-          const inverse = Number(rate.rate) > 0 ? 1 / Number(rate.rate) : 0;
+          const inverse = 1 / Number(rate.rate);
           const fmt = (n, c) => { try { return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(n); } catch { return String(n); } };
           const first = pts.length ? Number(pts[0][1]) : NaN;
           const last = pts.length ? Number(pts[pts.length - 1][1]) : NaN;
@@ -3868,10 +4024,16 @@
             <div class="pulse-tile"><span class="pulse-tile-label">30-day movement</span><strong class="${movePct === null ? '' : movePct >= 0 ? 'is-up' : 'is-down'}">${movePct === null ? '—' : `${movePct >= 0 ? '+' : ''}${movePct.toFixed(2)}%`}</strong><small>${moveLabel}</small></div>
             <div class="pulse-tile"><span class="pulse-tile-label">Observed</span><strong>${rate.date || '—'}</strong><small>${rate.source === 'wide-coverage' ? 'Wide-coverage feed' : 'Frankfurter (ECB blend)'}</small></div>`;
           list.innerHTML = `<div class="dash-row head"><span>PAIR</span><span>RATE</span><span>OBSERVED</span><span style="text-align:right">FRESHNESS</span></div>
-            <div class="dash-row"><div class="dash-transaction"><span class="dash-transaction-icon">⇄</span><div><div class="dash-transaction-name">${b} / ${q}</div><div class="dash-transaction-sub">${pts.length ? pts.length + ' points · 30d' : 'Reference rate'}</div></div></div>
+            <div class="dash-row"><div class="dash-transaction"><span class="dash-transaction-icon">⇄</span><div><div class="dash-transaction-name">${b} / ${q}</div><div class="dash-transaction-sub">${pts.length ? pts.length + ' points · 30d' : 'Reference rate · history unavailable'}</div></div></div>
             <span class="dash-category">${fmt(rate.rate, q)}</span><span class="dash-date">${rate.date}</span><strong class="dash-amount ${rate.stale ? 'is-stale' : ''}">${rate.stale ? 'STALE' : 'FRESH'}</strong></div>`;
           document.getElementById('pulse-caption').textContent = `Source: ${rate.source === 'wide-coverage' ? 'wide-coverage feed' : 'Frankfurter'} · Reference rates only — not provider quotes.`;
-        } catch { list.innerHTML = '<p class="dash-empty">Pulse unavailable. Set VITE_API_URL / meta roviel-api to enable.</p>'; }
+          renderPulseChart(b, q, pts);
+        } catch (error) {
+          if (request !== pulseRequest) return;
+          pulseUnavailable(error instanceof Error ? error.message : 'Pulse unavailable.');
+          list.innerHTML = '<p class="dash-empty">Pulse unavailable. Check the API and retry. <button class="dash-secondary" type="button" id="pulse-retry">Retry</button></p>';
+          list.querySelector('#pulse-retry')?.addEventListener('click', loadPulse);
+        }
       }
       document.getElementById('pulse-pair')?.addEventListener('change', loadPulse);
       accountSel?.addEventListener('change', updateAmountLabel);

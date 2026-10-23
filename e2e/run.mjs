@@ -424,6 +424,14 @@ try {
   check('fx history returns daily points', hist.status === 200 && histPoints >= 15, histPoints + ' points');
   check('pulse tiles render', (await page.locator('.pulse-tile').count()) === 4);
   check('pulse shows a rate', /FRESH|STALE/.test(await page.locator('#pulse-list').innerText()));
+  check('pulse chart renders the history', (await page.locator('#pulse-chart svg').count()) === 1 && (await page.locator('#pulse-chart-meta').innerText()).includes('High'));
+  const pulseBefore = await page.locator('#pulse-detail').innerText();
+  await page.locator('#pulse-chart').focus();
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(250);
+  const pulseAfter = await page.locator('#pulse-detail').innerText();
+  check('pulse chart supports keyboard inspection', pulseAfter !== pulseBefore && (await page.locator('#pulse-tooltip').isVisible()), pulseAfter.slice(0, 80));
+  check('pulse names the source and freshness', /Source: (Frankfurter|wide-coverage)/.test(await page.locator('#pulse-caption').innerText()), await page.locator('#pulse-caption').innerText());
   await Shot(page, '04-pulse');
 
   // custom select + bank suggestions
