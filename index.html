@@ -2340,8 +2340,8 @@
 
     async function deleteTransactionItem(id) {
       if (window.RovielCloud && window.RovielCloud.removeTransaction) {
-        const handled = await window.RovielCloud.removeTransaction(id);
-        if (handled) return;
+        const result = await window.RovielCloud.removeTransaction(id);
+        if (result !== 'local') return;
       }
       transactions = transactions.filter(t => String(t.id) !== String(id));
       try { localStorage.setItem('roviel.transactions.v1', JSON.stringify(transactions)); } catch (err) {}
@@ -3216,15 +3216,22 @@
         const name = String(data.get('name') || '').trim();
         const amount = Number(data.get('amount'));
         const errorBox = document.getElementById('transaction-error');
+        errorBox.textContent = '';
         if (!name) { errorBox.textContent = 'Add a short description so you can recognise this entry later.'; document.getElementById('transaction-name').focus(); return; }
         if (!Number.isFinite(amount) || amount <= 0) { errorBox.textContent = 'Enter an amount greater than zero.'; document.getElementById('transaction-amount').focus(); return; }
         const type = String(data.get('type'));
         const category = type === 'income' ? 'Income' : String(data.get('category') || 'Other');
+        const cloudActive = !!(window.RovielAPI && window.RovielAPI.isCloud());
+        const submitButton = form.querySelector('.tx-submit');
+        const setBusy = busy => { if (submitButton) submitButton.disabled = busy; };
 
         if (editingTransactionId) {
-          if (window.RovielCloud && typeof window.RovielCloud.updateTransaction === 'function') {
-            const updated = await window.RovielCloud.updateTransaction(editingTransactionId, { amountMajor: amount, note: name, category, kind: type });
-            if (updated) { closeTransactionModal(); return; }
+          if (cloudActive && window.RovielCloud && typeof window.RovielCloud.updateTransaction === 'function') {
+            setBusy(true);
+            const result = await window.RovielCloud.updateTransaction(editingTransactionId, { amountMajor: amount, note: name, category, kind: type });
+            setBusy(false);
+            if (result === 'saved') { closeTransactionModal(); return; }
+            if (result === 'failed') { errorBox.textContent = 'Cloud update failed. Your earlier entry is unchanged; check your connection and retry.'; return; }
           }
           const index = transactions.findIndex(item => String(item.id) === String(editingTransactionId));
           if (index >= 0) {
@@ -3242,15 +3249,18 @@
           return;
         }
 
-        // Cloud first (authoritative), local ledger as the offline fallback.
-        if (window.RovielCloud && typeof window.RovielCloud.saveTransaction === 'function') {
-          const saved = await window.RovielCloud.saveTransaction({ name, amount, type, category });
-          if (saved) {
+        if (cloudActive && window.RovielCloud && typeof window.RovielCloud.saveTransaction === 'function') {
+          setBusy(true);
+          const result = await window.RovielCloud.saveTransaction({ name, amount, type, category });
+          setBusy(false);
+          if (result === 'saved') {
             form.reset();
             document.getElementById('category-field').style.display = 'grid';
             closeTransactionModal();
             return;
           }
+          errorBox.textContent = 'Cloud save failed. Nothing was written locally; check your connection and retry.';
+          return;
         }
         const now = new Date();
         const dateISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
@@ -3874,11 +3884,29 @@
       async function cloudPatch(path, body) {
         return cloudFetch(path, { method: 'PATCH', body: JSON.stringify(body) });
       }
+      async function runMutation(button, action, successMessage) {
+        if (button?.disabled) return false;
+        if (button) button.disabled = true;
+        try {
+          await action();
+          if (successMessage) showDashboardToast(successMessage);
+          return true;
+        } catch (error) {
+          showDashboardToast(String(error.message || error));
+          return false;
+        } finally {
+          if (button) button.disabled = false;
+        }
+      }
       document.getElementById('add-account')?.addEventListener('click', async () => {
-        const name = document.getElementById('new-account-name').value.trim() || 'Cash';
+        const input = document.getElementById('new-account-name');
+        const name = input.value.trim() || 'Cash';
         const cur = document.getElementById('new-account-cur').value || 'INR';
-        try { await cloudPost('/api/accounts', { name, currency: cur, openingMajor: 0 }); loadCloud(); }
-        catch (e) { showDashboardToast(String(e.message)); }
+        await runMutation(document.getElementById('add-account'), async () => {
+          await cloudPost('/api/accounts', { name, currency: cur, openingMajor: 0 });
+          input.value = '';
+          await loadCloud();
+        }, 'Account added.');
       });
       transferButton?.addEventListener('click', async () => {
         const amt = Number(transferAmount?.value);
@@ -3896,71 +3924,93 @@
         finally { updateTransferPreview(); }
       });
       document.getElementById('add-budget')?.addEventListener('click', async () => {
-        const cat = document.getElementById('new-budget-cat').value.trim(); const lim = Number(document.getElementById('new-budget-limit').value);
+        const catInput = document.getElementById('new-budget-cat');
+        const limitInput = document.getElementById('new-budget-limit');
+        const cat = catInput.value.trim(); const lim = Number(limitInput.value);
         if (!cat || !lim) { showDashboardToast('Category + limit needed.'); return; }
-        try { await cloudPost('/api/budgets', { category: cat, limitMajor: lim, currency: cloudAccounts[0]?.currency || 'INR', yearMonth: new Date().toISOString().slice(0, 7) }); loadCloud(); }
-        catch (e) { showDashboardToast(String(e.message)); }
+        await runMutation(document.getElementById('add-budget'), async () => {
+          await cloudPost('/api/budgets', { category: cat, limitMajor: lim, currency: cloudAccounts[0]?.currency || 'INR', yearMonth: new Date().toISOString().slice(0, 7) });
+          catInput.value = ''; limitInput.value = '';
+          await loadCloud();
+        }, 'Budget added.');
       });
       document.getElementById('add-goal')?.addEventListener('click', async () => {
-        const title = document.getElementById('new-goal-title').value.trim(); const tgt = Number(document.getElementById('new-goal-target').value);
+        const titleInput = document.getElementById('new-goal-title');
+        const targetInput = document.getElementById('new-goal-target');
+        const title = titleInput.value.trim(); const tgt = Number(targetInput.value);
         if (!title || !tgt) { showDashboardToast('Title + target needed.'); return; }
-        try { await cloudPost('/api/goals', { title, targetMajor: tgt, currency: cloudAccounts[0]?.currency || 'INR' }); loadCloud(); }
-        catch (e) { showDashboardToast(String(e.message)); }
+        await runMutation(document.getElementById('add-goal'), async () => {
+          await cloudPost('/api/goals', { title, targetMajor: tgt, currency: cloudAccounts[0]?.currency || 'INR' });
+          titleInput.value = ''; targetInput.value = '';
+          await loadCloud();
+        }, 'Goal added.');
       });
       document.getElementById('add-recurring')?.addEventListener('click', async () => {
-        const title = document.getElementById('new-rec-title').value.trim(); const amt = Number(document.getElementById('new-rec-amount').value);
+        const titleInput = document.getElementById('new-rec-title');
+        const amountInput = document.getElementById('new-rec-amount');
+        const title = titleInput.value.trim(); const amt = Number(amountInput.value);
         if (!title || !amt) { showDashboardToast('Title + amount needed.'); return; }
-        try { await cloudPost('/api/recurring', { title, kind: 'expense', amountMajor: amt, currency: cloudAccounts[0]?.currency || 'INR', nextRun: new Date().toISOString() }); loadCloud(); }
-        catch (e) { showDashboardToast(String(e.message)); }
+        await runMutation(document.getElementById('add-recurring'), async () => {
+          await cloudPost('/api/recurring', { title, kind: 'expense', amountMajor: amt, currency: cloudAccounts[0]?.currency || 'INR', nextRun: new Date().toISOString() });
+          titleInput.value = ''; amountInput.value = '';
+          await loadCloud();
+        }, 'Recurring rule added.');
       });
       document.getElementById('refresh-insights')?.addEventListener('click', loadCloud);
       // Cloud-first save used by the single form handler in setupDashboard().
       async function saveTransaction(payload) {
-        if (!cloudMode || !api() || !api().isCloud()) return false;
+        if (!cloudMode || !api() || !api().isCloud()) return 'local';
         const acctId = (accountSel && accountSel.value) || (cloudAccounts[0] || {}).id;
-        if (!acctId) { document.getElementById('transaction-error').textContent = 'No cloud account yet — add one on the Accounts page.'; return false; }
+        if (!acctId) { document.getElementById('transaction-error').textContent = 'No cloud account yet — add one on the Accounts page.'; return 'failed'; }
         try {
           const res = await fetch(api().base + '/api/transactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('roviel.api.token') },
             body: JSON.stringify({ accountId: acctId, kind: payload.type, amountMajor: payload.amount, note: payload.name, category: payload.category }),
           });
-          if (res.status === 401) { expireSession(); return true; }
+          if (res.status === 401) { expireSession(); return 'failed'; }
           if (!res.ok) throw new Error('save failed');
           await loadCloud();
           showDashboardToast('Saved to your cloud ledger.');
-          return true;
+          return 'saved';
         } catch (error) {
-          showDashboardToast('Cloud save failed — saved on this device instead.');
-          return false;
+          showDashboardToast('Cloud save failed. Nothing was written locally.');
+          return 'failed';
         }
       }
       async function removeTransaction(id) {
-        if (!cloudMode || !api() || !api().isCloud()) return false;
+        if (!cloudMode || !api() || !api().isCloud()) return 'local';
         try {
           const r = await fetch(api().base + '/api/transactions/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('roviel.api.token') } });
-          if (r.status === 401) { expireSession(); return true; }
-          if (!r.ok) { const j = await r.json().catch(() => ({})); showDashboardToast(j.error || 'Cannot remove linked entry.'); return true; }
+          if (r.status === 401) { expireSession(); return 'failed'; }
+          if (!r.ok) { const j = await r.json().catch(() => ({})); showDashboardToast(j.error || 'Cannot remove linked entry.'); return 'failed'; }
           await loadCloud(); showDashboardToast('Removed from cloud.');
-          return true;
-        } catch { return false; }
+          return 'removed';
+        } catch {
+          showDashboardToast('Cloud delete failed. Nothing was removed locally.');
+          return 'failed';
+        }
       }
       async function updateTransaction(id, body) {
-        if (!cloudMode || !api() || !api().isCloud()) return false;
-        await cloudPatch('/api/transactions/' + id, body);
-        await loadCloud();
-        showDashboardToast('Transaction updated.');
-        return true;
+        if (!cloudMode || !api() || !api().isCloud()) return 'local';
+        try {
+          await cloudPatch('/api/transactions/' + id, body);
+          await loadCloud();
+          showDashboardToast('Transaction updated.');
+          return 'saved';
+        } catch (error) {
+          showDashboardToast('Cloud update failed. Nothing was changed locally.');
+          return 'failed';
+        }
       }
       document.getElementById('save-settings')?.addEventListener('click', async () => {
         const homeCurrency = document.getElementById('settings-home-currency')?.value;
         const locale = document.getElementById('settings-locale')?.value;
         if (!homeCurrency) return;
-        try {
+        await runMutation(document.getElementById('save-settings'), async () => {
           await cloudPatch('/api/auth/me', { homeCurrency, ...(locale ? { locale } : {}) });
           await loadCloud();
-          showDashboardToast(`Reporting currency set to ${homeCurrency}.`);
-        } catch (error) { showDashboardToast(String(error.message)); }
+        }, `Reporting currency set to ${homeCurrency}.`);
       });
       document.getElementById('change-password')?.addEventListener('click', async () => {
         if (!window.RovielAPI || !window.RovielAPI.isCloud()) { showDashboardToast('Sign in to change your password.'); return; }
@@ -3991,6 +4041,8 @@
           await cloudDelete('/api/auth/account', { password, confirm: 'DELETE' });
           localStorage.removeItem('roviel.api.token');
           cloudAccounts = [];
+          document.getElementById('delete-account-password').value = '';
+          document.getElementById('delete-account-confirm').value = '';
           try { transactions = JSON.parse(localStorage.getItem('roviel.transactions.v1') || 'null') || transactions; } catch {}
           refreshStatus(); renderDashboard();
           showDashboardToast('Account deleted. Local demo active.');

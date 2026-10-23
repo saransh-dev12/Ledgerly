@@ -269,6 +269,28 @@ try {
   const shownSpend = money(await page.locator('#total-expenses').innerText());
   check('spending matches server', near(shownSpend, summary.body.totals.expenseMajor, 2), `${shownSpend} vs ${summary.body.totals.expenseMajor.toFixed(0)}`);
 
+  // a failed cloud save must not fall through to the local demo ledger
+  let blockCloudSave = true;
+  await page.route('**/api/transactions', async route => {
+    if (blockCloudSave && route.request().method() === 'POST') {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'forced save failure' }) });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.click('#open-transaction');
+  await page.fill('#transaction-name', 'Cloud failure E2E');
+  await page.fill('#transaction-amount', '42');
+  await page.click('.tx-submit');
+  await page.waitForTimeout(700);
+  const cloudError = await page.locator('#transaction-error').innerText();
+  check('cloud save failure is explicit', /Cloud save failed/.test(cloudError), cloudError);
+  check('cloud save failure does not write locally', !(await page.locator('#transaction-list').innerText()).includes('Cloud failure E2E'));
+  blockCloudSave = false;
+  await page.unroute('**/api/transactions');
+  await page.click('#close-transaction');
+  await page.waitForTimeout(300);
+
   // chart reflects the real months
   const cols = await page.locator('.chart-col').count();
   check('chart renders one column per month', cols === summary.body.months.length, `${cols} vs ${summary.body.months.length}`);

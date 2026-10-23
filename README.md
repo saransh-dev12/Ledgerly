@@ -27,7 +27,7 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 Browser (Vite, zero-framework UI)
   ├── index.html            landing + dashboard + converter (vanilla JS, ES modules)
   ├── public/roviel-api.js thin API client (additive; demo works without it)
-  ├── e2e/run.mjs           Playwright suite (103 checks, real browser)
+  ├── e2e/run.mjs           Playwright suite (105 checks, real browser)
   └── server/test/          Vitest money/maths unit tests (JPY, KWD, fees)
         │  HTTPS + Bearer JWT
         ▼
@@ -83,7 +83,7 @@ Open <http://localhost:5173>. Use the public converter without an account; sign 
 
 ```sh
 npm run test:unit     # minor-unit maths: JPY (1), KWD (1000), fees
-npm run test:e2e      # reseeds the demo, then runs 103 Playwright checks
+npm run test:e2e      # reseeds the demo, then runs 105 Playwright checks
 npm run lint         # oxlint
 ```
 
@@ -158,7 +158,7 @@ npm run db:migrate    # only if the backup predates the current schema
 - New accounts start at **zero** — the app never invents an opening balance. Demo data is seeded explicitly and labelled as a demo.
 - Entries can only use the currency of their account. Missing FX quotes are reported as unavailable (`null`) rather than converted at `1`.
 - Account deletion requires the account password plus the exact word `DELETE`; an account with entries cannot be removed, and at least one account must remain.
-- The client treats a `401` as an expired session, clears cloud state, and asks you to sign in instead of showing an empty or local ledger as if it were yours.
+- The client treats a `401` as an expired session, clears cloud state, and asks you to sign in instead of showing an empty or local ledger as if it were yours. A failed cloud write never falls back to the local demo ledger while signed in; the form stays open with a retryable error.
 - CSV exports include the original currency, kind, `amount_minor`, and the converted `home_amount` when a rate exists.
 
 ## Data sources & disclaimers
