@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { requireAuth, type AuthedRequest } from '../middleware/requireAuth.js';
-import { toMinor, minorScale, convertWithRate } from '../lib/money.js';
+import { toMinor, normalizeCurrency, convertWithRate } from '../lib/money.js';
 import { getRate } from '../lib/fx.js';
 
 const router = Router();
@@ -21,14 +21,22 @@ router.get('/', async (req: AuthedRequest, res) => {
 router.post('/', async (req: AuthedRequest, res) => {
   const s = z.object({
     accountId: z.string(), kind: z.enum(['income', 'expense']),
-    amountMajor: z.number().positive(), currency: z.string().length(3).optional(),
+    amountMajor: z.number().finite().positive().max(1_000_000_000_000), currency: z.string().optional(),
     note: z.string().max(140).default(''), category: z.string().max(40).default('Other'),
     bookedAt: z.string().optional(),
   }).safeParse(req.body);
   if (!s.success) { res.status(400).json({ error: s.error.issues[0]?.message }); return; }
   const acct = await prisma.account.findFirst({ where: { id: s.data.accountId, userId: req.userId! } });
   if (!acct) { res.status(404).json({ error: 'Account not found' }); return; }
-  const cur = (s.data.currency || acct.currency).toUpperCase();
+  const requested = s.data.currency ? normalizeCurrency(s.data.currency) : acct.currency;
+  if (!requested) { res.status(400).json({ error: 'Unsupported currency code.' }); return; }
+  if (requested !== acct.currency) {
+    res.status(400).json({ error: `This account holds ${acct.currency}. Record ${requested} activity in a ${requested} account.` });
+    return;
+  }
+  const bookedAt = s.data.bookedAt ? new Date(s.data.bookedAt) : new Date();
+  if (!Number.isFinite(bookedAt.getTime())) { res.status(400).json({ error: 'Enter a valid transaction date.' }); return; }
+  const cur = acct.currency;
   const signed = s.data.kind === 'income' ? toMinor(s.data.amountMajor, cur) : -toMinor(s.data.amountMajor, cur);
   const user = await prisma.user.findUnique({ where: { id: req.userId! } });
   let rateToHome: number | null = null;
@@ -38,14 +46,17 @@ router.post('/', async (req: AuthedRequest, res) => {
   const tx = await prisma.transaction.create({ data: {
     userId: req.userId!, accountId: acct.id, kind: s.data.kind,
     amountMinor: signed, currency: cur, note: s.data.note, category: s.data.kind === 'income' ? 'Income' : s.data.category,
-    bookedAt: s.data.bookedAt ? new Date(s.data.bookedAt) : new Date(),
+    bookedAt,
     rateToHome,
   }});
-  res.status(201).json({ ...tx, amountMinor: tx.amountMinor.toString() });
+  res.status(201).json({
+    ...tx, amountMinor: tx.amountMinor.toString(),
+    ...(rateToHome === null && cur !== user!.homeCurrency ? { fxWarning: `No ${cur}/${user!.homeCurrency} rate is available yet; home-currency totals will exclude this entry until a rate is observed.` } : {}),
+  });
 });
 
 router.post('/transfer', async (req: AuthedRequest, res) => {
-  const s = z.object({ fromAccountId: z.string(), toAccountId: z.string(), amountMajor: z.number().positive(), note: z.string().max(140).default('') }).safeParse(req.body);
+  const s = z.object({ fromAccountId: z.string(), toAccountId: z.string(), amountMajor: z.number().finite().positive().max(1_000_000_000_000), note: z.string().max(140).default('') }).safeParse(req.body);
   if (!s.success) { res.status(400).json({ error: s.error.issues[0]?.message }); return; }
   const [from, to] = await Promise.all([
     prisma.account.findFirst({ where: { id: s.data.fromAccountId, userId: req.userId! } }),
@@ -65,6 +76,65 @@ router.post('/transfer', async (req: AuthedRequest, res) => {
     return { out, inn };
   });
   res.status(201).json({ out: { ...result.out, amountMinor: result.out.amountMinor.toString() }, in: { ...result.inn, amountMinor: result.inn.amountMinor.toString() }, rate });
+});
+
+router.patch('/:id', async (req: AuthedRequest, res) => {
+  const s = z.object({
+    amountMajor: z.number().finite().positive().max(1_000_000_000_000).optional(),
+    note: z.string().max(140).optional(),
+    category: z.string().trim().min(1).max(40).optional(),
+    bookedAt: z.string().optional(),
+    accountId: z.string().optional(),
+    kind: z.enum(['income', 'expense']).optional(),
+  }).safeParse(req.body);
+  if (!s.success) { res.status(400).json({ error: s.error.issues[0]?.message }); return; }
+  const tx = await prisma.transaction.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    include: { linksFrom: true, linksTo: true },
+  });
+  if (!tx) { res.status(404).json({ error: 'Not found' }); return; }
+  if (tx.kind !== 'income' && tx.kind !== 'expense') {
+    res.status(400).json({ error: 'Transfer legs cannot be edited. Reverse the transfer and record a new one.' });
+    return;
+  }
+  if (tx.linksFrom.length || tx.linksTo.length) {
+    res.status(400).json({ error: 'Linked transactions cannot be edited.' });
+    return;
+  }
+  let accountId = tx.accountId;
+  if (s.data.accountId && s.data.accountId !== tx.accountId) {
+    const target = await prisma.account.findFirst({ where: { id: s.data.accountId, userId: req.userId! } });
+    if (!target) { res.status(404).json({ error: 'Account not found' }); return; }
+    if (target.currency !== tx.currency) {
+      res.status(400).json({ error: `This entry is in ${tx.currency}; choose a ${tx.currency} account.` });
+      return;
+    }
+    accountId = target.id;
+  }
+  const bookedAt = s.data.bookedAt ? new Date(s.data.bookedAt) : undefined;
+  if (bookedAt && !Number.isFinite(bookedAt.getTime())) { res.status(400).json({ error: 'Enter a valid transaction date.' }); return; }
+  const kind = s.data.kind || tx.kind;
+  const amountMinor = s.data.amountMajor !== undefined ? toMinor(s.data.amountMajor, tx.currency) : undefined;
+  const signed = amountMinor === undefined ? undefined : (kind === 'income' ? amountMinor : -amountMinor);
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  let rateToHome = tx.rateToHome ? Number(tx.rateToHome) : null;
+  if (rateToHome === null) {
+    if (tx.currency === user!.homeCurrency) rateToHome = 1;
+    else { try { rateToHome = (await getRate(tx.currency, user!.homeCurrency)).rate; } catch {} }
+  }
+  const updated = await prisma.transaction.update({
+    where: { id: tx.id },
+    data: {
+      accountId,
+      ...(signed !== undefined ? { amountMinor: signed } : {}),
+      ...(s.data.kind ? { kind } : {}),
+      ...(s.data.note !== undefined ? { note: s.data.note } : {}),
+      ...(s.data.category !== undefined || s.data.kind ? { category: kind === 'income' ? 'Income' : (s.data.category || (tx.category === 'Income' ? 'Other' : tx.category)) } : {}),
+      ...(bookedAt ? { bookedAt } : {}),
+      rateToHome,
+    },
+  });
+  res.json({ ...updated, amountMinor: updated.amountMinor.toString() });
 });
 
 router.delete('/:id', async (req: AuthedRequest, res) => {

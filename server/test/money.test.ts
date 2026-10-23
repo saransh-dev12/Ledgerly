@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { convertWithRate, fromMinor, minorScale, quoteBreakdown, toMajorUnits, toMinor } from '../src/lib/money';
+import { convertWithRate, fromMinor, minorScale, normalizeCurrency, quoteBreakdown, toMajorUnits, toMinor } from '../src/lib/money';
 
 describe('minor units', () => {
   it('uses 1:1 for zero-decimal currencies', () => {
@@ -24,6 +24,16 @@ describe('minor units', () => {
     expect(minorScale('USD')).toBe(100);
     expect(toMinor('10.005', 'USD')).toBe(1001n);
     expect(toMajorUnits(1001, 'USD')).toBe(10.01);
+  });
+});
+
+describe('currency validation', () => {
+  it('normalizes supported ISO codes and rejects malformed input', () => {
+    expect(normalizeCurrency(' inr ')).toBe('INR');
+    expect(normalizeCurrency('kwd')).toBe('KWD');
+    expect(normalizeCurrency('US')).toBeNull();
+    expect(normalizeCurrency('123')).toBeNull();
+    expect(normalizeCurrency(undefined)).toBeNull();
   });
 });
 

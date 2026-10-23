@@ -4,10 +4,11 @@ import { prisma } from '../lib/db.js';
 import { hashPassword, verifyPassword, signToken } from '../lib/auth.js';
 import { requireAuth, type AuthedRequest } from '../middleware/requireAuth.js';
 import rateLimit from 'express-rate-limit';
+import { normalizeCurrency } from '../lib/money.js';
 
 const router = Router();
-const signupSchema = z.object({ email: z.string().email(), password: z.string().min(8), displayName: z.string().max(60).optional(), homeCurrency: z.string().length(3).optional() });
-const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
+const signupSchema = z.object({ email: z.string().trim().email().max(254), password: z.string().min(8).max(128), displayName: z.string().trim().max(60).optional(), homeCurrency: z.string().optional() });
+const loginSchema = z.object({ email: z.string().trim().email().max(254), password: z.string().min(1).max(128) });
 
 const signupLimiter = rateLimit({
   windowMs: 60_000, max: 5, standardHeaders: true, legacyHeaders: false,
@@ -24,21 +25,24 @@ router.post('/signup', signupLimiter, async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message }); return; }
   try {
-  const { email, password, displayName, homeCurrency } = parsed.data;
+  const email = parsed.data.email.toLowerCase();
+  const { password, displayName } = parsed.data;
+  const homeCurrency = normalizeCurrency(parsed.data.homeCurrency || 'INR');
+  if (!homeCurrency) { res.status(400).json({ error: 'Unsupported home currency.' }); return; }
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) { res.status(409).json({ error: 'Email already registered' }); return; }
   const user = await prisma.user.create({
     data: {
       email, passwordHash: await hashPassword(password),
       displayName: displayName || 'My workspace',
-      homeCurrency: (homeCurrency || 'INR').toUpperCase(),
+      homeCurrency,
       categories: { create: [
         { name: 'Food & dining', kind: 'expense' }, { name: 'Housing', kind: 'expense' },
         { name: 'Transport', kind: 'expense' }, { name: 'Shopping', kind: 'expense' },
         { name: 'Health', kind: 'expense' }, { name: 'Other', kind: 'expense' },
         { name: 'Income', kind: 'income' },
       ]},
-      accounts: { create: [{ name: 'Cash', currency: (homeCurrency || 'INR').toUpperCase(), openingMinor: 70660 * 100 }] },
+      accounts: { create: [{ name: 'Cash', currency: homeCurrency, openingMinor: 0 }] },
     }, include: { accounts: true },
   });
   const token = signToken(user.id, user.tokenVersion);
@@ -50,7 +54,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: 'Invalid credentials' }); return; }
   try {
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
   if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
     res.status(401).json({ error: 'Invalid email or password' }); return;
   }
@@ -65,13 +69,39 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ id: user.id, email: user.email, displayName: user.displayName, homeCurrency: user.homeCurrency, locale: user.locale });
 });
 
+router.patch('/me', requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = z.object({
+    displayName: z.string().trim().min(1).max(60).optional(),
+    homeCurrency: z.string().optional(),
+    locale: z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/).optional(),
+  }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message }); return; }
+  const homeCurrency = parsed.data.homeCurrency ? normalizeCurrency(parsed.data.homeCurrency) : undefined;
+  if (parsed.data.homeCurrency && !homeCurrency) { res.status(400).json({ error: 'Unsupported home currency.' }); return; }
+  const data: any = { ...parsed.data };
+  if (homeCurrency) data.homeCurrency = homeCurrency;
+  const user = await prisma.user.update({ where: { id: req.userId! }, data });
+  if (homeCurrency) {
+    // Rate snapshots are relative to the old home currency. Keep original
+    // transaction amounts, but let reporting revalue them with current rates.
+    await prisma.transaction.updateMany({ where: { userId: user.id }, data: { rateToHome: null } });
+  }
+  res.json({ id: user.id, email: user.email, displayName: user.displayName, homeCurrency: user.homeCurrency, locale: user.locale });
+});
+
 router.post('/logout', requireAuth, async (req: AuthedRequest, res) => {
   await prisma.user.update({ where: { id: req.userId! }, data: { tokenVersion: { increment: 1 } } });
   res.json({ ok: true });
 });
 
 router.delete('/account', requireAuth, async (req: AuthedRequest, res) => {
-  await prisma.user.delete({ where: { id: req.userId! } });
+  const parsed = z.object({ password: z.string().min(1).max(128), confirm: z.literal('DELETE') }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: 'Confirm with your password and the word DELETE.' }); return; }
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+    res.status(401).json({ error: 'Password is incorrect.' }); return;
+  }
+  await prisma.user.delete({ where: { id: user.id } });
   res.json({ ok: true });
 });
 

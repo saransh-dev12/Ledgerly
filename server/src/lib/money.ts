@@ -1,5 +1,17 @@
 // Ported from index.html BigInt math — preserves existing quote/converter guarantees.
 // Fixed fees in destination currency, % fee on provider amount, tax on fees.
+export function normalizeCurrency(input: unknown): string | null {
+  const code = String(input ?? '').trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) return null;
+  try {
+    // Intl validates the ISO 4217 code (Node ships with full ICU).
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(0);
+    return code;
+  } catch {
+    return null;
+  }
+}
+
 export function minorScale(currency: string): number {
   const zero: Record<string, number> = { JPY: 1, KRW: 1, VND: 1, CLP: 1 };
   const three: Record<string, number> = { BHD: 1000, JOD: 1000, KWD: 1000, OMD: 1000, TND: 1000 };
