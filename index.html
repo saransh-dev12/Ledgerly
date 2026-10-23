@@ -4159,6 +4159,7 @@
           console.warn('Ledgerly background scene could not start:', error);
         }
       });
+      document.documentElement.dataset.appReady = 'true';
     }
     if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', initializePage, { once: true });
     else initializePage();

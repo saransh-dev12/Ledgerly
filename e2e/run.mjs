@@ -21,11 +21,15 @@ async function newPage(viewport = { width: 1440, height: 900 }) {
   page.on('pageerror', e => errors.push(String(e).slice(0, 160)));
   return page;
 }
+async function ready(page) {
+  await page.waitForFunction(() => document.documentElement.dataset.appReady === 'true', { timeout: 20000 });
+}
 async function openDashboard(page) {
   try {
     await page.click('.contact-btn', { timeout: 8000 });
   } catch {
     await page.goto(WEB + '/#dashboard', { waitUntil: 'domcontentloaded' });
+    await ready(page);
   }
   await page.waitForSelector('#dashboard-view.open', { timeout: 10000 });
 }
@@ -53,7 +57,8 @@ const money = text => Number(String(text).replace(/[^0-9.-]/g, '')) || 0;
 try {
   // ================= LANDING =================
   const page = await newPage();
-  await page.goto(WEB, { waitUntil: 'networkidle' });
+  await page.goto(WEB, { waitUntil: 'domcontentloaded' });
+  await ready(page);
   check('landing loads', (await page.title()).includes('Ledgerly'));
   check('4 story slides', (await page.locator('.slide').count()) === 4);
   check('sign-in visible on desktop', await page.locator('#open-auth-modal').isVisible());
@@ -64,13 +69,16 @@ try {
   await page.waitForTimeout(1100);
   const snap = await page.evaluate(() => window.scrollY / (document.documentElement.scrollHeight - window.innerHeight));
   check('scroll snaps to a section', Math.abs(snap - 0.34) < 0.03, 'ratio ' + snap.toFixed(3));
+  await page.waitForFunction(() => document.querySelector('#slide-2-img')?.classList.contains('active'), { timeout: 5000 }).catch(() => {});
   check('overview preview appears', await page.locator('#slide-2-img').evaluate(el => el.classList.contains('active')));
   await page.evaluate(() => window.scrollTo({ top: (document.documentElement.scrollHeight - window.innerHeight) * 0.62, behavior: 'instant' }));
   await page.waitForTimeout(1100);
+  await page.waitForFunction(() => document.querySelector('#slide-3-img')?.classList.contains('active'), { timeout: 5000 }).catch(() => {});
   check('activity preview appears', await page.locator('#slide-3-img').evaluate(el => el.classList.contains('active')));
   check('activity preview lists four entries', (await page.locator('#slide-3-img .preview-row').count()) === 4);
   await page.evaluate(() => window.scrollTo({ top: (document.documentElement.scrollHeight - window.innerHeight) * 0.94, behavior: 'instant' }));
   await page.waitForTimeout(1100);
+  await page.waitForFunction(() => document.querySelector('#slide-4-img')?.classList.contains('active'), { timeout: 5000 }).catch(() => {});
   check('plan preview appears', await page.locator('#slide-4-img').evaluate(el => el.classList.contains('active')));
   check('plan preview lists three goals', (await page.locator('#slide-4-img .preview-goal').count()) === 3);
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
@@ -383,7 +391,8 @@ try {
 
   // ================= MOBILE =================
   const mob = await newPage({ width: 390, height: 844 });
-  await mob.goto(WEB, { waitUntil: 'networkidle' });
+  await mob.goto(WEB, { waitUntil: 'domcontentloaded' });
+  await ready(mob);
   await openDashboard(mob);
   check('mobile: sidebar hidden', !(await mob.locator('.dash-sidebar').isVisible()));
   check('mobile: tab bar visible', await mob.locator('.dash-viewtabs').isVisible());
@@ -397,6 +406,7 @@ try {
   const off = await newPage();
   await off.route('**/api/**', route => route.abort());
   await off.goto(WEB, { waitUntil: 'domcontentloaded' });
+  await ready(off);
   await off.waitForTimeout(2500);
   await openDashboard(off);
   check('offline: dashboard still opens', (await off.locator('#total-balance').innerText()).length > 1);
@@ -409,7 +419,8 @@ try {
   await off.close();
   // ================= AUTH HARDENING =================
   const auth = await newPage();
-  await auth.goto(WEB, { waitUntil: 'networkidle' });
+  await auth.goto(WEB, { waitUntil: 'domcontentloaded' });
+  await ready(auth);
   await openDashboard(auth);
   await login(auth);
   const logout = await api(auth, '/api/auth/logout', { method: 'POST' });
