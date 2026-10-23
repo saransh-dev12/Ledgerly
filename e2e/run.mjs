@@ -334,18 +334,38 @@ try {
   const txCountAfter = (await api(page, '/api/transactions')).body.length;
   check('recurring posts exactly one transaction', txCountAfter === txCountBefore + 1, `${txCountBefore} -> ${txCountAfter}`);
 
-  // transfer: source decreases, destination increases
+  // transfer: choose accounts, preview the FX, then verify both linked legs
   await page.click('.dash-side-nav [data-view="accounts"]');
   await page.waitForTimeout(900);
-  const accountsBefore = (await api(page, '/api/summary')).body.accounts;
+  const allAccounts = (await api(page, '/api/accounts')).body;
+  const transferSource = allAccounts.find(a => a.currency === 'INR');
+  const transferTarget = allAccounts.find(a => a.currency === 'USD');
+  await page.selectOption('#transfer-from', transferSource.id);
+  await page.selectOption('#transfer-to', transferTarget.id);
   await page.fill('#transfer-amount', '100');
+  await page.waitForTimeout(3200);
+  const preview = await page.locator('#transfer-preview').innerText();
+  check('transfer preview shows the live pair', /1 INR = [\d.]+ USD/.test(preview), preview.slice(0, 90));
+  const accountsBefore = (await api(page, '/api/summary')).body.accounts;
   await page.click('#do-transfer');
-  await page.waitForTimeout(2600);
+  await page.waitForTimeout(3000);
   const accountsAfter = (await api(page, '/api/summary')).body.accounts;
-  const srcBefore = accountsBefore[0], srcAfter = accountsAfter[0];
+  const srcBefore = accountsBefore.find(a => a.id === transferSource.id), srcAfter = accountsAfter.find(a => a.id === transferSource.id);
   check('transfer debits the source account exactly', near(srcBefore.balanceMajor - srcAfter.balanceMajor, 100, 0.01), `${srcBefore.balanceMajor} -> ${srcAfter.balanceMajor}`);
-  const dstBefore = accountsBefore[1], dstAfter = accountsAfter[1];
+  const dstBefore = accountsBefore.find(a => a.id === transferTarget.id), dstAfter = accountsAfter.find(a => a.id === transferTarget.id);
   check('transfer credits the destination account', dstAfter.balanceMajor > dstBefore.balanceMajor, `${dstBefore.balanceMajor} -> ${dstAfter.balanceMajor}`);
+  const ledgerAfterTransfer = (await api(page, '/api/transactions')).body;
+  const crossLeg = ledgerAfterTransfer.find(t => t.kind === 'transfer_out' && t.accountId === transferSource.id && t.transfer && t.transfer.toAccount.id === transferTarget.id);
+  check('transfer stores the exact FX quote', !!crossLeg && Number(crossLeg.transfer.rate) > 0 && crossLeg.transfer.rateDate, crossLeg ? `${crossLeg.transfer.rate} @ ${crossLeg.transfer.rateDate}` : 'missing');
+  check('transfer stores both linked minor amounts', !!crossLeg && BigInt(crossLeg.transfer.sentMinor) === BigInt(crossLeg.amountMinor) && BigInt(crossLeg.transfer.receivedMinor) > 0n, crossLeg ? `${crossLeg.transfer.sentMinor} -> ${crossLeg.transfer.receivedMinor}` : 'missing');
+  await page.click('.dash-side-nav [data-view="transactions"]');
+  await page.waitForTimeout(1000);
+  const transferRow = page.locator('#transaction-list .dash-row', { hasText: `Transfer to ${transferTarget.name}` }).first();
+  await transferRow.click();
+  await page.waitForTimeout(400);
+  const transferDetail = await page.locator('#drawer-body').innerText();
+  check('transfer detail opens with rate and received amount', (await page.locator('#drawer-title').innerText()) === 'Transfer details' && /Exchange rate/.test(transferDetail) && /Received/.test(transferDetail), transferDetail.replace(/\n/g, ' ').slice(0, 110));
+  await page.click('#drawer-close');
 
   // insights cards open evidence
   await page.click('.dash-side-nav [data-view="insights"]');

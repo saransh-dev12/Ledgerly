@@ -138,6 +138,14 @@ async function run() {
   // Transfers are balance movements only — never income or expense.
   const transfer = await call('/api/transactions/transfer', { method: 'POST', token: a.token, body: { fromAccountId: inr1.id, toAccountId: inr2.id, amountMajor: 25 } });
   assert.equal(transfer.status, 201);
+  assert.equal(transfer.body.rate, 1);
+  const linkedSame = (await call('/api/transactions', { token: a.token })).body.find(t => t.id === transfer.body.out.id);
+  assert.equal(linkedSame.transfer.rate, 1);
+  assert.equal(linkedSame.transfer.direction, 'out');
+  assert.equal(linkedSame.transfer.fromAccount.id, inr1.id);
+  assert.equal(linkedSame.transfer.toAccount.id, inr2.id);
+  assert.equal(linkedSame.transfer.sentMinor, transfer.body.out.amountMinor);
+  assert.equal(linkedSame.transfer.receivedMinor, transfer.body.in.amountMinor);
 
   const before = await call('/api/summary?months=6', { token: a.token });
   assert.equal(before.status, 200);
@@ -151,6 +159,26 @@ async function run() {
   assert.equal(edited.body.amountMinor, '-4000');
   const after = await call('/api/summary?months=6', { token: a.token });
   assert.equal(after.body.totals.expenseMajor, 40);
+
+  // Cross-currency transfers persist the exact quote and both counterparts.
+  const usd2 = await createAccount(a.token, { name: 'Cross USD', currency: 'USD' });
+  const cross = await call('/api/transactions/transfer', { method: 'POST', token: a.token, body: { fromAccountId: inr2.id, toAccountId: usd2.id, amountMajor: 10, note: 'Cross transfer' } });
+  assert.equal(cross.status, 201, JSON.stringify(cross.body));
+  assert.ok(Number(cross.body.rate) > 0);
+  const linkedCross = (await call('/api/transactions', { token: a.token })).body.find(t => t.id === cross.body.out.id);
+  assert.ok(linkedCross.transfer, 'transfer details must survive a reload');
+  assert.equal(linkedCross.transfer.rate, cross.body.rate);
+  assert.equal(linkedCross.transfer.rateDate, cross.body.rateDate);
+  assert.equal(linkedCross.transfer.rateSource, cross.body.rateSource);
+  assert.equal(linkedCross.transfer.direction, 'out');
+  assert.equal(linkedCross.transfer.fromAccount.currency, 'INR');
+  assert.equal(linkedCross.transfer.toAccount.currency, 'USD');
+  assert.equal(linkedCross.transfer.sentMinor, cross.body.out.amountMinor);
+  assert.equal(linkedCross.transfer.receivedMinor, cross.body.in.amountMinor);
+  const inboundCross = (await call('/api/transactions', { token: a.token })).body.find(t => t.id === cross.body.in.id);
+  assert.equal(inboundCross.transfer.direction, 'in');
+  assert.equal(inboundCross.transfer.receivedMinor, cross.body.in.amountMinor);
+  assert.equal((await call(`/api/transactions/${cross.body.out.id}`, { method: 'DELETE', token: a.token })).status, 400);
 
   // An account with activity cannot be deleted; empty accounts can.
   const refusedDelete = await call(`/api/accounts/${inr1.id}`, { method: 'DELETE', token: a.token });

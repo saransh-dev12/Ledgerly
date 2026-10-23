@@ -2,11 +2,47 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { requireAuth, type AuthedRequest } from '../middleware/requireAuth.js';
-import { toMinor, normalizeCurrency, convertWithRate } from '../lib/money.js';
+import { toMinor, normalizeCurrency, convertWithRate, toMajorUnits } from '../lib/money.js';
 import { getRate } from '../lib/fx.js';
 
 const router = Router();
 router.use(requireAuth);
+
+type LinkedTransaction = {
+  id: string; amountMinor: bigint; currency: string;
+  account: { id: string; name: string; currency: string };
+  linksFrom?: { id: string; rate: any; rateDate: string | null; rateSource: string | null; to: LinkedTransaction }[];
+  linksTo?: { id: string; rate: any; rateDate: string | null; rateSource: string | null; from: LinkedTransaction }[];
+  [key: string]: any;
+};
+
+function serializeTransaction(t: LinkedTransaction) {
+  const outLink = t.linksFrom?.[0];
+  const inLink = t.linksTo?.[0];
+  const link: any = outLink || inLink || null;
+  let transfer: any = null;
+  if (link) {
+    const out = outLink ? t : link.from;
+    const inn = outLink ? link.to : t;
+    const storedRate = link.rate ? Number(link.rate) : null;
+    const sentMajor = Math.abs(toMajorUnits(out.amountMinor, out.currency));
+    const receivedMajor = Math.abs(toMajorUnits(inn.amountMinor, inn.currency));
+    const derivedRate = sentMajor > 0 ? receivedMajor / sentMajor : null;
+    transfer = {
+      linkId: link.id,
+      direction: outLink ? 'out' : 'in',
+      rate: storedRate || derivedRate,
+      rateDate: link.rateDate || null,
+      rateSource: link.rateSource || (storedRate ? 'stored' : 'derived'),
+      fromAccount: out.account,
+      toAccount: inn.account,
+      sentMinor: out.amountMinor.toString(),
+      receivedMinor: inn.amountMinor.toString(),
+    };
+  }
+  const { linksFrom: _from, linksTo: _to, ...rest } = t;
+  return { ...rest, amountMinor: t.amountMinor.toString(), ...(transfer ? { transfer } : {}) };
+}
 
 router.get('/', async (req: AuthedRequest, res) => {
   const { accountId, from, to, kind } = req.query as any;
@@ -14,8 +50,13 @@ router.get('/', async (req: AuthedRequest, res) => {
     where: { userId: req.userId!, ...(accountId ? { accountId: String(accountId) } : {}), ...(kind && kind !== 'all' ? { kind: String(kind) } : {}),
       ...(from || to ? { bookedAt: { ...(from ? { gte: new Date(String(from)) } : {}), ...(to ? { lte: new Date(String(to)) } : {}) } } : {}) },
     orderBy: { bookedAt: 'desc' }, take: 200,
+    include: {
+      account: { select: { id: true, name: true, currency: true } },
+      linksFrom: { include: { to: { include: { account: { select: { id: true, name: true, currency: true } } } } } },
+      linksTo: { include: { from: { include: { account: { select: { id: true, name: true, currency: true } } } } } },
+    },
   });
-  res.json(txs.map(t => ({ ...t, amountMinor: t.amountMinor.toString() })));
+  res.json(txs.map(t => serializeTransaction(t as LinkedTransaction)));
 });
 
 router.post('/', async (req: AuthedRequest, res) => {
@@ -65,17 +106,24 @@ router.post('/transfer', async (req: AuthedRequest, res) => {
   if (!from || !to) { res.status(404).json({ error: 'Account not found' }); return; }
   if (from.id === to.id) { res.status(400).json({ error: 'Choose two different accounts' }); return; }
   let rate = 1;
-  if (from.currency !== to.currency) { try { rate = (await getRate(from.currency, to.currency)).rate; } catch { res.status(502).json({ error: 'FX unavailable' }); return; } }
+  let rateDate = new Date().toISOString().slice(0, 10);
+  let rateSource = 'identity';
+  if (from.currency !== to.currency) {
+    try {
+      const quote = await getRate(from.currency, to.currency);
+      rate = quote.rate; rateDate = quote.date; rateSource = quote.source;
+    } catch { res.status(502).json({ error: 'FX unavailable' }); return; }
+  }
   const outMinor = -toMinor(s.data.amountMajor, from.currency);
   // Exact per-currency path: major → rate → dest minor (no assumed ×100).
   const inMinor = convertWithRate(-outMinor, rate, from.currency, to.currency);
   const result = await prisma.$transaction(async (db) => {
     const out = await db.transaction.create({ data: { userId: req.userId!, accountId: from.id, kind: 'transfer_out', amountMinor: outMinor, currency: from.currency, note: s.data.note || `Transfer to ${to.name}`, category: 'Transfer' } });
     const inn = await db.transaction.create({ data: { userId: req.userId!, accountId: to.id, kind: 'transfer_in', amountMinor: inMinor, currency: to.currency, note: s.data.note || `Transfer from ${from.name}`, category: 'Transfer' } });
-    await db.transactionLink.create({ data: { fromId: out.id, toId: inn.id, linkType: 'transfer' } });
+    await db.transactionLink.create({ data: { fromId: out.id, toId: inn.id, linkType: 'transfer', rate, rateDate, rateSource } });
     return { out, inn };
   });
-  res.status(201).json({ out: { ...result.out, amountMinor: result.out.amountMinor.toString() }, in: { ...result.inn, amountMinor: result.inn.amountMinor.toString() }, rate });
+  res.status(201).json({ out: { ...result.out, amountMinor: result.out.amountMinor.toString() }, in: { ...result.inn, amountMinor: result.inn.amountMinor.toString() }, rate, rateDate, rateSource });
 });
 
 router.patch('/:id', async (req: AuthedRequest, res) => {

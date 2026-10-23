@@ -102,8 +102,11 @@ model TransactionLink {
   from      Transaction @relation("linkFrom", fields: [fromId], references: [id], onDelete: Cascade)
   toId      String
   to        Transaction @relation("linkTo", fields: [toId], references: [id], onDelete: Cascade)
-  linkType  String // transfer | refund | reversal
-  createdAt DateTime    @default(now())
+  linkType   String    // transfer | refund | reversal
+  rate       Decimal?  @db.Decimal(18, 8)
+  rateDate   String?
+  rateSource String?
+  createdAt  DateTime  @default(now())
 
   @@index([fromId])
   @@index([toId])

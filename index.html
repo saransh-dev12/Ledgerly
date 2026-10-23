@@ -636,6 +636,7 @@
     .dash-transaction { display: flex; min-width: 0; align-items: center; gap: 11px; }
     .dash-transaction-icon { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border: 1px solid var(--line); border-radius: 9px; color: #bcc3b6; background: rgb(255 255 255 / 3%); font-size: 13px; }
     .dash-transaction-icon.is-income { border-color: rgb(198 244 50 / 26%); color: var(--accent); background: rgb(198 244 50 / 7%); }
+    .dash-transaction-icon.is-transfer { border-color: rgb(198 244 50 / 18%); color: var(--accent); background: rgb(198 244 50 / 4%); }
     .dash-transaction-name { overflow: hidden; color: #e0e4da; font-size: 12px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
     .dash-transaction-sub { margin-top: 3px; color: var(--faint); font-size: 9px; }
     .dash-category, .dash-date { color: var(--muted); font-size: 10px; }
@@ -1551,7 +1552,7 @@
               <div><h2>Recent activity</h2><p id="activity-caption">A clear trail of where your money moves.</p></div>
               <div class="dash-activity-tools">
                 <input class="dash-search" id="transaction-search" type="search" placeholder="Search activity" aria-label="Search transactions">
-                <select class="dash-filter" id="transaction-filter" aria-label="Filter transactions"><option value="all">All activity</option><option value="income">Money in</option><option value="expense">Money out</option></select>
+                <select class="dash-filter" id="transaction-filter" aria-label="Filter transactions"><option value="all">All activity</option><option value="income">Money in</option><option value="expense">Money out</option><option value="transfer">Transfers</option></select>
               </div>
             </div>
             <div class="dash-list" id="transaction-list" aria-live="polite"></div>
@@ -1587,7 +1588,7 @@
             </header>
             <section class="cloud-grid duo cloud-only">
               <article class="dash-card"><h3>Your accounts</h3><p>Wallets, banks and cards you hold.</p><ul id="account-list"></ul><div class="mini-form"><input id="new-account-name" placeholder="Name (e.g. HDFC)" maxlength="40"><select id="new-account-cur" aria-label="Account currency"><option>INR</option><option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>AUD</option><option>CAD</option><option>CHF</option><option>SGD</option><option>AED</option></select><button type="button" id="add-account">Add account</button></div></article>
-              <article class="dash-card"><h3>Move money</h3><p>Transfer between your first two accounts.</p><div class="mini-form"><input id="transfer-amount" type="number" min="1" placeholder="Amount"><button type="button" id="do-transfer">Transfer</button></div><p class="hint">FX is captured at transfer time and both legs are linked, so a transfer can never be deleted by accident.</p></article>
+              <article class="dash-card"><h3>Move money</h3><p>Send between your own accounts with a live reference rate.</p><div class="mini-form"><select id="transfer-from" aria-label="Transfer from account"></select><select id="transfer-to" aria-label="Transfer to account"></select><input id="transfer-amount" type="number" min="1" placeholder="Amount"><button type="button" id="do-transfer">Transfer</button></div><p class="hint" id="transfer-preview">Choose two accounts to preview the exchange.</p><p class="hint">The rate and both linked legs are stored at transfer time, so the exact exchange remains available after reload.</p></article>
             </section>
             <section class="dash-card dash-activity cloud-gate"><div class="dash-activity-top"><div><h2>Accounts live in the cloud</h2><p>Sign in to create wallets, hold multiple currencies, and transfer with live FX.</p></div></div><button class="dash-primary cloud-gate-signin" type="button">Sign in to unlock</button></section>
             <section class="cloud-grid duo cloud-only">
@@ -2191,6 +2192,10 @@
       }
     }
 
+    function formatRate(rate) {
+      return new Intl.NumberFormat(undefined, { maximumSignificantDigits: 8, maximumFractionDigits: 8 }).format(Number(rate));
+    }
+
     function transactionDateLabel(item) {
       if (!item.dateISO) return item.date;
       const parts = item.dateISO.split('-').map(Number);
@@ -2307,7 +2312,8 @@
       const search = document.getElementById('transaction-search').value.trim().toLowerCase();
       const filter = document.getElementById('transaction-filter').value;
       const filtered = transactions.filter(item => {
-        const matchesType = filter === 'all' || item.type === filter;
+        const transfer = isTransferEntry(item);
+        const matchesType = filter === 'all' || (filter === 'transfer' ? transfer : !transfer && item.type === filter);
         const matchesSearch = !search || (item.name + ' ' + item.category + ' ' + item.date).toLowerCase().includes(search);
         return matchesType && matchesSearch;
       });
@@ -2332,9 +2338,10 @@
         row.className = 'dash-row';
         const description = document.createElement('div');
         description.className = 'dash-transaction';
+        const transfer = isTransferEntry(item);
         const icon = document.createElement('span');
-        icon.className = 'dash-transaction-icon' + (item.type === 'income' ? ' is-income' : '');
-        icon.textContent = item.type === 'income' ? '↙' : (item.category === 'Housing' ? '⌂' : item.category === 'Transport' ? '↗' : item.category === 'Shopping' ? '◇' : '•');
+        icon.className = 'dash-transaction-icon' + (item.type === 'income' ? ' is-income' : transfer ? ' is-transfer' : '');
+        icon.textContent = transfer ? '⇄' : item.type === 'income' ? '↙' : (item.category === 'Housing' ? '⌂' : item.category === 'Transport' ? '↗' : item.category === 'Shopping' ? '◇' : '•');
         icon.setAttribute('aria-hidden', 'true');
         const nameWrap = document.createElement('div');
         nameWrap.style.minWidth = '0';
@@ -2343,7 +2350,12 @@
         name.textContent = item.name;
         const subtitle = document.createElement('div');
         subtitle.className = 'dash-transaction-sub';
-        subtitle.textContent = item.type === 'income' ? 'Money in' : 'Money out';
+        if (transfer && item.transfer) {
+          const tr = item.transfer;
+          subtitle.textContent = `${tr.fromAccount.name} → ${tr.toAccount.name} · 1 ${tr.fromAccount.currency} = ${formatRate(tr.rate)} ${tr.toAccount.currency}`;
+        } else {
+          subtitle.textContent = transfer ? 'Linked transfer' : item.type === 'income' ? 'Money in' : 'Money out';
+        }
         nameWrap.append(name, subtitle);
         description.append(icon, nameWrap);
         const category = document.createElement('span');
@@ -2353,8 +2365,9 @@
         date.className = 'dash-date';
         date.textContent = transactionDateLabel(item);
         const amount = document.createElement('strong');
+        const incoming = item.type === 'income' || item.type === 'transfer_in';
         amount.className = 'dash-amount' + (item.type === 'income' ? ' is-income' : '');
-        amount.textContent = (item.type === 'income' ? '+' : '−') + formatMoney(Math.abs(item.amount), item.currency || dashState.homeCurrency);
+        amount.textContent = (incoming ? '+' : '−') + formatMoney(Math.abs(item.amount), item.currency || dashState.homeCurrency);
         const del = document.createElement('button');
         del.className = 'row-del'; del.textContent = '×'; del.title = 'Remove';
         del.setAttribute('aria-label', 'Remove ' + item.name);
@@ -2364,7 +2377,13 @@
           del.addEventListener('click', () => deleteTransactionItem(item.id));
         }
         row.append(description, category, date, amount, del);
-        if (!isTransferEntry(item)) {
+        if (transfer) {
+          row.tabIndex = 0;
+          row.title = 'View transfer details';
+          row.setAttribute('aria-label', `View transfer ${item.name}`);
+          row.addEventListener('click', event => { if (!event.target.closest('button')) openTransferDetail(item); });
+          row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openTransferDetail(item); } });
+        } else {
           row.tabIndex = 0;
           row.title = 'Edit transaction';
           row.setAttribute('aria-label', `Edit ${item.name}`);
@@ -3571,6 +3590,88 @@
           ? accountSel.selectedOptions[0].textContent.split('·')[1].trim() : 'INR';
         if (lbl) lbl.textContent = 'AMOUNT (' + cur + ')';
       }
+      const transferFrom = document.getElementById('transfer-from');
+      const transferTo = document.getElementById('transfer-to');
+      const transferAmount = document.getElementById('transfer-amount');
+      const transferPreview = document.getElementById('transfer-preview');
+      const transferButton = document.getElementById('do-transfer');
+      let transferPreviewSeq = 0;
+      let transferPreviewTimer = null;
+      const accountById = id => cloudAccounts.find(a => a.id === id) || null;
+      function syncTransferAccounts() {
+        if (!transferFrom || !transferTo) return;
+        const previousFrom = transferFrom.value;
+        const previousTo = transferTo.value;
+        const options = cloudAccounts.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
+        transferFrom.innerHTML = options;
+        transferTo.innerHTML = options;
+        transferFrom.value = accountById(previousFrom) ? previousFrom : (cloudAccounts[0]?.id || '');
+        let nextTo = accountById(previousTo) ? previousTo : (cloudAccounts.find(a => a.id !== transferFrom.value)?.id || '');
+        if (!nextTo || nextTo === transferFrom.value) nextTo = cloudAccounts.find(a => a.id !== transferFrom.value)?.id || transferFrom.value;
+        transferTo.value = nextTo;
+        if (transferButton) transferButton.disabled = cloudAccounts.length < 2;
+        updateTransferPreview();
+      }
+      async function updateTransferPreview() {
+        if (!transferPreview) return;
+        const from = accountById(transferFrom?.value);
+        const to = accountById(transferTo?.value);
+        const amount = Number(transferAmount?.value);
+        if (!from || !to) {
+          transferPreview.textContent = 'Add two accounts to move money.';
+          if (transferButton) transferButton.disabled = true;
+          return;
+        }
+        if (from.id === to.id) {
+          transferPreview.textContent = 'Choose two different accounts.';
+          if (transferButton) transferButton.disabled = true;
+          return;
+        }
+        if (transferButton) transferButton.disabled = false;
+        const seq = ++transferPreviewSeq;
+        if (from.currency === to.currency) {
+          transferPreview.textContent = amount > 0
+            ? `Sending ${formatMoney(amount, from.currency)} from ${from.name} to ${to.name}. Both accounts use ${from.currency}.`
+            : `Both accounts use ${from.currency}. Enter an amount to preview the transfer.`;
+          return;
+        }
+        transferPreview.textContent = 'Loading reference rate…';
+        try {
+          const quote = await api().fxRate(from.currency, to.currency);
+          if (seq !== transferPreviewSeq) return;
+          const rate = Number(quote && quote.rate);
+          if (!(rate > 0)) throw new Error('No rate');
+          const stamp = quote.date ? ` · ${quote.date}` : '';
+          const stale = quote.stale ? ' · stale reference rate' : '';
+          if (amount > 0) {
+            const sentMinor = toMinorUnits(amount, from.currency);
+            const receivedMinor = convertMinorUnits(sentMinor, from.currency, rate, to.currency);
+            transferPreview.textContent = `Sending ${formatMajor(sentMinor.toString(), from.currency)} → about ${formatMajor(receivedMinor.toString(), to.currency)} at 1 ${from.currency} = ${formatRate(rate)} ${to.currency}${stamp}${stale}. Final amount is captured when you transfer.`;
+          } else {
+            transferPreview.textContent = `1 ${from.currency} = ${formatRate(rate)} ${to.currency}${stamp}${stale}. Enter an amount to preview the transfer.`;
+          }
+        } catch {
+          if (seq === transferPreviewSeq) transferPreview.textContent = 'FX preview unavailable. You can still try the transfer; the server will reject it if no rate exists.';
+        }
+      }
+      transferFrom?.addEventListener('change', () => {
+        if (transferFrom.value === transferTo.value) {
+          const next = cloudAccounts.find(a => a.id !== transferFrom.value);
+          if (next) transferTo.value = next.id;
+        }
+        updateTransferPreview();
+      });
+      transferTo?.addEventListener('change', () => {
+        if (transferFrom.value === transferTo.value) {
+          const next = cloudAccounts.find(a => a.id !== transferTo.value);
+          if (next) transferFrom.value = next.id;
+        }
+        updateTransferPreview();
+      });
+      transferAmount?.addEventListener('input', () => {
+        window.clearTimeout(transferPreviewTimer);
+        transferPreviewTimer = window.setTimeout(updateTransferPreview, 280);
+      });
       async function loadCloud() {
         if (!api() || !api().isCloud()) { refreshStatus(); return; }
         try {
@@ -3588,6 +3689,7 @@
             const wrapper = accountSel.closest('.select');
             if (wrapper && wrapper.refresh) wrapper.refresh();
           }
+          syncTransferAccounts();
           const al = document.getElementById('account-list');
           if (al) al.innerHTML = cloudAccounts.length ? cloudAccounts.map(a => `<li style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div><strong>${escapeHtml(a.name)}</strong> — ${escapeHtml(formatMajor(a.openingMinor, a.currency))} <span class="muted-cur">${escapeHtml(a.currency)}</span></div><div style="display:flex;gap:5px"><button class="row-del" type="button" data-account-rename="${escapeHtml(a.id)}" data-name="${escapeHtml(a.name)}" title="Rename account" aria-label="Rename ${escapeHtml(a.name)}">✎</button><button class="row-del" type="button" data-account-del="${escapeHtml(a.id)}" data-name="${escapeHtml(a.name)}" title="Delete account" aria-label="Delete ${escapeHtml(a.name)}">×</button></div></li>`).join('') : '<li>No accounts yet.</li>';
           al?.querySelectorAll('[data-account-rename]').forEach(btn => btn.addEventListener('click', async () => {
@@ -3617,8 +3719,9 @@
                 date: new Date(t.bookedAt).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' }),
                 dateISO: String(t.bookedAt).slice(0, 10),
                 amountMinor: t.amountMinor, amount: major, home: rate === null ? null : major * rate,
-                type: t.kind === 'income' || t.kind === 'transfer_in' ? 'income' : 'expense',
+                type: t.kind,
                 isTransfer: String(t.kind || '').startsWith('transfer'),
+                transfer: t.transfer || null,
               };
             });
           }
@@ -3734,11 +3837,20 @@
         try { await cloudPost('/api/accounts', { name, currency: cur, openingMajor: 0 }); loadCloud(); }
         catch (e) { showDashboardToast(String(e.message)); }
       });
-      document.getElementById('do-transfer')?.addEventListener('click', async () => {
-        const amt = Number(document.getElementById('transfer-amount').value);
-        if (!amt || cloudAccounts.length < 2) { showDashboardToast('Need 2 accounts + amount.'); return; }
-        try { await cloudPost('/api/transactions/transfer', { fromAccountId: cloudAccounts[0].id, toAccountId: cloudAccounts[1].id, amountMajor: amt }); loadCloud(); showDashboardToast('Transferred.'); }
-        catch (e) { showDashboardToast(String(e.message)); }
+      transferButton?.addEventListener('click', async () => {
+        const amt = Number(transferAmount?.value);
+        const from = accountById(transferFrom?.value);
+        const to = accountById(transferTo?.value);
+        if (!from || !to || from.id === to.id || !amt || amt <= 0) { showDashboardToast('Choose two different accounts and an amount.'); return; }
+        transferButton.disabled = true;
+        try {
+          const result = await cloudPost('/api/transactions/transfer', { fromAccountId: from.id, toAccountId: to.id, amountMajor: amt });
+          const received = result && result.in ? formatMajor(result.in.amountMinor, to.currency) : formatMoney(amt, from.currency);
+          transferAmount.value = '';
+          await loadCloud();
+          showDashboardToast(`Transferred ${formatMoney(amt, from.currency)} and received ${received}.`);
+        } catch (e) { showDashboardToast(String(e.message || e)); }
+        finally { updateTransferPreview(); }
       });
       document.getElementById('add-budget')?.addEventListener('click', async () => {
         const cat = document.getElementById('new-budget-cat').value.trim(); const lim = Number(document.getElementById('new-budget-limit').value);
@@ -4375,6 +4487,36 @@
       body.innerHTML = `<p class="drawer-lead">${escapeHtml(insight.body)}</p>
         ${refs.length ? `<div class="drawer-section"><span class="drawer-section-title">Supporting entries</span>${refs.map(t => `<div class="drawer-row"><div><strong>${escapeHtml(t.name)}</strong><span class="drawer-sub">${escapeHtml(t.category)} · ${escapeHtml(t.date)}</span></div><span class="drawer-value ${t.type === 'income' ? 'positive' : 'negative'}">${escapeHtml(formatMoney(Math.abs(t.home ?? t.amount), t.currency || dashState.homeCurrency))}</span></div>`).join('')}</div>` : '<p class="dash-empty">This insight is computed across your whole ledger.</p>'}
         <p class="drawer-note">${escapeHtml((payload && payload.disclaimer) || 'Computed from your entries. No predictions.')}</p>`;
+      drawer.hidden = false;
+      backdrop.hidden = false;
+      requestAnimationFrame(() => { drawer.classList.add('open'); backdrop.classList.add('open'); });
+      drawer.setAttribute('aria-hidden', 'false');
+      document.getElementById('drawer-close')?.focus({ preventScroll: true });
+    }
+
+    function openTransferDetail(item) {
+      const tr = item && item.transfer;
+      if (!tr) return;
+      const drawer = document.getElementById('detail-drawer');
+      const backdrop = document.getElementById('drawer-backdrop');
+      const body = document.getElementById('drawer-body');
+      const title = document.getElementById('drawer-title');
+      const kicker = document.getElementById('drawer-kicker');
+      if (!drawer || !body) return;
+      const from = tr.fromAccount || {};
+      const to = tr.toAccount || {};
+      const source = tr.rateSource === 'wide-coverage' ? 'Wide-coverage fallback'
+        : tr.rateSource === 'derived' ? 'Derived from the linked amounts'
+        : tr.rateSource === 'identity' ? 'Same currency' : 'Frankfurter reference';
+      if (kicker) kicker.textContent = 'Linked transfer';
+      if (title) title.textContent = 'Transfer details';
+      body.innerHTML = `
+        <div class="drawer-row"><div><strong>${escapeHtml(from.name || 'Source')} → ${escapeHtml(to.name || 'Destination')}</strong><span class="drawer-sub">${escapeHtml(from.currency || '')} to ${escapeHtml(to.currency || '')}</span></div><span class="drawer-value">${escapeHtml(transactionDateLabel(item))}</span></div>
+        <div class="drawer-row"><div><strong>Sent</strong><span class="drawer-sub">From ${escapeHtml(from.name || 'source account')}</span></div><span class="drawer-value negative">−${escapeHtml(formatMajor(Math.abs(Number(tr.sentMinor)), from.currency))}</span></div>
+        <div class="drawer-row"><div><strong>Received</strong><span class="drawer-sub">Into ${escapeHtml(to.name || 'destination account')}</span></div><span class="drawer-value positive">+${escapeHtml(formatMajor(tr.receivedMinor, to.currency))}</span></div>
+        <div class="drawer-row"><div><strong>Exchange rate</strong><span class="drawer-sub">${escapeHtml(source)}</span></div><span class="drawer-value">1 ${escapeHtml(from.currency || '')} = ${escapeHtml(formatRate(tr.rate))} ${escapeHtml(to.currency || '')}</span></div>
+        <div class="drawer-row"><div><strong>Rate observed</strong><span class="drawer-sub">Stored with this transfer</span></div><span class="drawer-value">${escapeHtml(tr.rateDate || 'Not recorded')}</span></div>
+        <p class="drawer-note">Both legs are linked and cannot be edited or deleted separately. Record a reverse transfer to undo this movement.</p>`;
       drawer.hidden = false;
       backdrop.hidden = false;
       requestAnimationFrame(() => { drawer.classList.add('open'); backdrop.classList.add('open'); });
