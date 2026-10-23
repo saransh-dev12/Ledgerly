@@ -4,6 +4,10 @@
 
 Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL + Prisma in front, a dependency-free design system in the browser.
 
+**Live:** [ledgerly-phi-seven.vercel.app](https://ledgerly-phi-seven.vercel.app) · [API health](https://ledgerly-api-4yhc.onrender.com/health) — demo login `demo@ledgerly.app` / `ledgerly123`.
+
+> The API runs on Render's free tier and sleeps after 15 minutes idle, so the first request can take ~30 seconds. Cloud mode wakes it; the offline demo is instant.
+
 ---
 
 ## What it does
@@ -108,14 +112,18 @@ The E2E suite drives a real Chromium instance and asserts exact values rather th
 | --- | --- | --- |
 | Frontend | Vercel | `vercel.json` |
 | API | Render (Docker) | `render.yaml` |
-| Database | Supabase Postgres | `server/prisma/migrations` |
+| Database | Render Postgres (free) | `server/prisma/migrations` |
 
-1. **Database** — create a Supabase project, copy the pooled connection string (port `6543`, `?pgbouncer=true&connection_limit=1` for serverless) and keep the direct connection for migrations.
-2. **API** — create a Render Blueprint from `render.yaml` (or a Docker web service with `rootDir: server`). Set `DATABASE_URL`, `FRONTEND_URL` (the Vercel URL, comma-separated for previews) and let Render generate `JWT_SECRET`. The container runs `prisma migrate deploy` on boot; `/health` is the readiness check.
-3. **Frontend** — import the repo into Vercel (Vite preset, `dist` output) and set `VITE_API_URL` to the Render URL. The value is injected at build time and takes precedence over `meta[name="ledgerly-api"]` and the localStorage override.
-4. **Seed the demo (optional)** — `DATABASE_URL=<supabase-direct-url> npm run db:seed`. This resets the demo user's data, so never point it at real users.
+Live URLs: web `https://ledgerly-phi-seven.vercel.app`, API `https://ledgerly-api-4yhc.onrender.com` (Render service `ledgerly-api`, Singapore, Docker, `rootDir: server`).
+
+1. **Database** — create a free Render Postgres in the same region as the API and copy its **internal** connection string for the service. External connections are closed until the source IP is allow-listed; to seed from a laptop, add your own IP (`render postgres update <db> --ip-allow-list "cidr=<ip>/32,description=seed"`), append `?sslmode=require`, run the seed, then clear the list (`--clear-ip-allow-list`).
+2. **API** — create a Render Docker web service with `rootDir: server`, health check `/health`, and env `DATABASE_URL`, `FRONTEND_URL` (comma-separated allow-list for the web origins) and `JWT_SECRET`. The image installs OpenSSL 3 so Prisma's schema engine can run; the container executes `prisma migrate deploy` before starting the server.
+3. **Frontend** — the Vercel project is linked locally (`.vercel/`, gitignored) and `VITE_API_URL` is set for Production and Preview. Deploy with `vercel --prod`, which rebuilds the bundle with the API URL baked in; the value takes precedence over `meta[name="ledgerly-api"]` and the localStorage override. The project is not connected to GitHub yet, so pushing alone does not deploy the frontend.
+4. **Seed the demo** — `DATABASE_URL='<external-url>?sslmode=require' npm run db:seed`. The seed resets the demo user's data, so never point it at real users.
 
 `FRONTEND_URL` is also the CORS allow-list: requests from other origins are rejected. Local development needs no env at all — the web app defaults to `http://localhost:4000` on localhost and keeps working offline in demo mode.
+
+Operational notes: the Render web service sleeps after 15 minutes idle (cold start ~30s); the free Postgres instance expires on **2026-11-22** and must be migrated to Neon/Supabase or a paid plan before then (tracked in issues).
 
 ## Data sources & disclaimers
 
