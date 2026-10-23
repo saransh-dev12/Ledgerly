@@ -4,7 +4,7 @@
 
 Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL + Prisma in front, a dependency-free design system in the browser.
 
-**Live:** [roviel-phi-seven.vercel.app](https://roviel-phi-seven.vercel.app) · [API health](https://roviel-api-4yhc.onrender.com/health) — demo login `demo@ledgerly.app` / `ledgerly123`.
+**Live:** [roviel.vercel.app](https://roviel.vercel.app) · [API health](https://ledgerly-api-4yhc.onrender.com/health) — demo login `demo@ledgerly.app` / `ledgerly123`.
 
 > The API runs on Render's free tier and sleeps after 15 minutes idle, so the first request can take ~30 seconds. Cloud mode wakes it; the offline demo is instant.
 
@@ -119,7 +119,7 @@ The E2E suite drives a real Chromium instance and asserts exact values rather th
 | API | Render (Docker) | `render.yaml` |
 | Database | Render Postgres (free) | `server/prisma/migrations` |
 
-Live URLs: web `https://roviel-phi-seven.vercel.app`, API `https://roviel-api-4yhc.onrender.com` (Render service `roviel-api`, Singapore, Docker, `rootDir: server`).
+Live URLs: web `https://roviel.vercel.app`, API `https://ledgerly-api-4yhc.onrender.com` (Render service `roviel-api`, Singapore, Docker, `rootDir: server`).
 
 1. **Database** — create a free Render Postgres in the same region as the API and copy its **internal** connection string for the service. External connections are closed until the source IP is allow-listed; to seed from a laptop, add your own IP (`render postgres update <db> --ip-allow-list "cidr=<ip>/32,description=seed"`), append `?sslmode=require`, run the seed, then clear the list (`--clear-ip-allow-list`).
 2. **API** — create a Render Docker web service with `rootDir: server`, health check `/health`, and env `DATABASE_URL`, `FRONTEND_URL` (comma-separated allow-list for the web origins) and `JWT_SECRET`. The image installs OpenSSL 3 so Prisma's schema engine can run; the container executes `prisma migrate deploy` before starting the server.
