@@ -138,20 +138,20 @@ Operational notes: the Render web service sleeps after 15 minutes idle (cold sta
 
 ## Backup and recovery
 
-Production data now lives on Neon Postgres. Take an off-platform dump before migrations or destructive changes; the free Neon plan is not a substitute for your own backup policy:
+Production data now lives on Neon Postgres 18. Take an off-platform dump before migrations or destructive changes; the free Neon plan is not a substitute for your own backup policy. A local PostgreSQL 16 `pg_dump` cannot dump PostgreSQL 18, so the Neon helper uses the matching `postgres:18` Docker image:
 
 ```sh
-# External access must be allowed for your IP first (Render dashboard or CLI).
-DATABASE_URL='postgresql://.../roviel?sslmode=require' ./scripts/backup-db.sh
-pg_restore --list backups/roviel-*.dump | head      # verify the archive
+DATABASE_URL='postgresql://.../neondb?sslmode=require' ./scripts/backup-neon.sh
 ```
 
-Restore into a fresh database, never over live data without a snapshot:
+Restore into a fresh database or Neon branch, never over live data without a snapshot:
 
 ```sh
-DATABASE_URL='postgresql://.../roviel?sslmode=require' RESTORE_CONFIRM=RESTORE ./scripts/restore-db.sh backups/roviel-YYYYMMDDTHHMMSSZ.dump
+DATABASE_URL='postgresql://.../neondb?sslmode=require' RESTORE_CONFIRM=RESTORE ./scripts/restore-neon.sh backups/roviel-neon-YYYYMMDDTHHMMSSZ.dump
 npm run db:migrate    # only if the backup predates the current schema
 ```
+
+The generic `backup-db.sh` and `restore-db.sh` scripts remain for a Postgres 16/Render database where the local client version matches. The restore drill still requires matching client tools; use a PostgreSQL 18 client or the Docker helpers when drilling against Neon.
 
 `backups/` is gitignored. Keep dumps outside the repository and never commit credentials or dumps. For the bundled demo, `npm run db:seed` rebuilds the sample ledger; it is destructive to the `demo@ledgerly.app` user only.
 
