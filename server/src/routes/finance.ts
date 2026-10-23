@@ -7,20 +7,30 @@ import { getRate } from '../lib/fx.js';
 
 const router = Router();
 router.use(requireAuth);
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 // Budgets
 router.get('/budgets', async (req: AuthedRequest, res) => {
   const { month } = req.query as any;
+  if (month !== undefined && !MONTH_RE.test(String(month))) {
+    res.status(400).json({ error: 'month must use YYYY-MM.' });
+    return;
+  }
   const list = await prisma.budget.findMany({ where: { userId: req.userId!, ...(month ? { yearMonth: String(month) } : {}) }, orderBy: [{ yearMonth: 'desc' }, { category: 'asc' }] });
   res.json(list.map(b => ({ ...b, limitMinor: b.limitMinor.toString() })));
 });
 router.post('/budgets', async (req: AuthedRequest, res) => {
-  const s = z.object({ category: z.string().trim().min(1).max(40), limitMajor: z.number().finite().positive().max(1_000_000_000_000), currency: z.string(), yearMonth: z.string().regex(/^\d{4}-\d{2}$/) }).safeParse(req.body);
+  const s = z.object({ category: z.string().trim().min(1).max(40), limitMajor: z.number().finite().positive().max(1_000_000_000_000), currency: z.string(), yearMonth: z.string().regex(MONTH_RE) }).safeParse(req.body);
   if (!s.success) { res.status(400).json({ error: s.error.issues[0]?.message }); return; }
   const currency = normalizeCurrency(s.data.currency);
   if (!currency) { res.status(400).json({ error: 'Unsupported currency code.' }); return; }
-  const b = await prisma.budget.create({ data: { userId: req.userId!, category: s.data.category, limitMinor: toMinor(s.data.limitMajor, currency), currency, yearMonth: s.data.yearMonth } });
-  res.status(201).json({ ...b, limitMinor: b.limitMinor.toString() });
+  try {
+    const b = await prisma.budget.create({ data: { userId: req.userId!, category: s.data.category, limitMinor: toMinor(s.data.limitMajor, currency), currency, yearMonth: s.data.yearMonth } });
+    res.status(201).json({ ...b, limitMinor: b.limitMinor.toString() });
+  } catch (error: any) {
+    if (error?.code === 'P2002') { res.status(409).json({ error: 'A budget already exists for that category and month.' }); return; }
+    throw error;
+  }
 });
 router.delete('/budgets/:id', async (req: AuthedRequest, res) => {
   const b = await prisma.budget.findFirst({ where: { id: req.params.id, userId: req.userId! } });

@@ -15,7 +15,12 @@ router.get('/', async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId! } });
   if (!user) { res.status(404).json({ error: 'Not found' }); return; }
   const home = user.homeCurrency;
-  const months = Math.min(36, Math.max(1, Number((req.query.months as any) || 12)));
+  const requestedMonths = req.query.months === undefined ? 12 : Number(req.query.months);
+  if (!Number.isInteger(requestedMonths) || requestedMonths < 1 || requestedMonths > 36) {
+    res.status(400).json({ error: 'months must be a whole number from 1 to 36.' });
+    return;
+  }
+  const months = requestedMonths;
 
   const [accounts, transactions, budgets, goals] = await Promise.all([
     prisma.account.findMany({ where: { userId: req.userId! }, orderBy: { createdAt: 'asc' } }),

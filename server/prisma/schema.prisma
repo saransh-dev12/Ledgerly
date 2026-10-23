@@ -137,6 +137,7 @@ model Budget {
   yearMonth  String // e.g. 2026-10
   createdAt  DateTime @default(now())
 
+  @@unique([userId, category, yearMonth])
   @@index([userId, yearMonth])
 }
 

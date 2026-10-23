@@ -44,11 +44,33 @@ function serializeTransaction(t: LinkedTransaction) {
   return { ...rest, amountMinor: t.amountMinor.toString(), ...(transfer ? { transfer } : {}) };
 }
 
+const TRANSACTION_KINDS = ['all', 'income', 'expense', 'transfer_in', 'transfer_out', 'refund', 'reversal'];
+
+function parseQueryDate(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
 router.get('/', async (req: AuthedRequest, res) => {
   const { accountId, from, to, kind } = req.query as any;
+  if (kind !== undefined && !TRANSACTION_KINDS.includes(String(kind))) {
+    res.status(400).json({ error: 'Unknown transaction type filter.' });
+    return;
+  }
+  const fromDate = from === undefined ? undefined : parseQueryDate(from);
+  const toDate = to === undefined ? undefined : parseQueryDate(to);
+  if ((from !== undefined && !fromDate) || (to !== undefined && !toDate)) {
+    res.status(400).json({ error: 'Use a valid ISO date for from and to.' });
+    return;
+  }
+  if (fromDate && toDate && fromDate > toDate) {
+    res.status(400).json({ error: 'The from date must be before the to date.' });
+    return;
+  }
   const txs = await prisma.transaction.findMany({
     where: { userId: req.userId!, ...(accountId ? { accountId: String(accountId) } : {}), ...(kind && kind !== 'all' ? { kind: String(kind) } : {}),
-      ...(from || to ? { bookedAt: { ...(from ? { gte: new Date(String(from)) } : {}), ...(to ? { lte: new Date(String(to)) } : {}) } } : {}) },
+      ...(fromDate || toDate ? { bookedAt: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } } : {}) },
     orderBy: { bookedAt: 'desc' }, take: 200,
     include: {
       account: { select: { id: true, name: true, currency: true } },

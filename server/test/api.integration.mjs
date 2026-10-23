@@ -135,6 +135,13 @@ async function run() {
   assert.equal(expense.body.amountMinor, '-10000');
   assert.equal(expense.body.currency, 'INR');
 
+  // Invalid date and type filters are client errors, not outages.
+  assert.equal((await call('/api/transactions?from=not-a-date', { token: a.token })).status, 400);
+  assert.equal((await call('/api/transactions?to=not-a-date', { token: a.token })).status, 400);
+  assert.equal((await call('/api/transactions?from=2026-10-10&to=2026-10-01', { token: a.token })).status, 400);
+  assert.equal((await call('/api/transactions?kind=everything', { token: a.token })).status, 400);
+  assert.equal((await call('/api/transactions?from=2026-10-01&to=2026-10-31', { token: a.token })).status, 200);
+
   // Transfers are balance movements only — never income or expense.
   const transfer = await call('/api/transactions/transfer', { method: 'POST', token: a.token, body: { fromAccountId: inr1.id, toAccountId: inr2.id, amountMajor: 25 } });
   assert.equal(transfer.status, 201);
@@ -208,6 +215,16 @@ async function run() {
   assert.equal((await call(`/api/accounts/${inr2.id}`, { method: 'PATCH', token: b.token, body: { name: 'Mine now' } })).status, 404);
   assert.equal((await call(`/api/recurring/${rule.body.id}/post`, { method: 'POST', token: b.token, body: {} })).status, 404);
   assert.equal((await call('/api/budgets', { token: a.token })).body.length, 0);
+  const budgetBody = { category: 'Duplicate check', limitMajor: 50, currency: 'INR', yearMonth: '2026-10' };
+  assert.equal((await call('/api/budgets', { method: 'POST', token: a.token, body: budgetBody })).status, 201);
+  assert.equal((await call('/api/budgets', { method: 'POST', token: a.token, body: budgetBody })).status, 409);
+  assert.equal((await call('/api/budgets', { method: 'POST', token: a.token, body: { ...budgetBody, category: 'Bad month', yearMonth: '2026-13' } })).status, 400);
+  assert.equal((await call('/api/budgets?month=2026-13', { token: a.token })).status, 400);
+  const invalidMonths = await call('/api/summary?months=abc', { token: a.token });
+  assert.equal(invalidMonths.status, 400);
+  assert.equal((await call('/api/summary?months=0', { token: a.token })).status, 400);
+  assert.equal((await call('/api/summary?months=37', { token: a.token })).status, 400);
+  assert.equal((await call('/api/summary?months=36', { token: a.token })).status, 200);
 
   // Home-currency changes are explicit and supported.
   const me = await call('/api/auth/me', { method: 'PATCH', token: a.token, body: { homeCurrency: 'usd' } });
