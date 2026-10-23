@@ -1343,8 +1343,8 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
+        "three": "/vendor/three/three.module.min.js",
+        "three/examples/jsm/loaders/GLTFLoader.js": "/vendor/three/examples/jsm/loaders/GLTFLoader.js"
       }
     }
   </script>
@@ -1771,8 +1771,9 @@
   <script type="module">
     // Vercel injects VITE_API_URL at build time; local dev falls back to :4000.
     if (import.meta.env && import.meta.env.VITE_API_URL) window.__ROVIEL_API__ = import.meta.env.VITE_API_URL;
-    const THREE_MODULE_URL = 'https://unpkg.com/three@0.160.0/build/three.module.js';
-    const GLTF_LOADER_URL = 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+    const localVisualUrl = path => new URL(path, window.location.origin).href;
+    const THREE_MODULE_URL = localVisualUrl('/vendor/three/three.module.min.js');
+    const GLTF_LOADER_URL = localVisualUrl('/vendor/three/examples/jsm/loaders/GLTFLoader.js');
     let THREE = null;
     let GLTFLoader = null;
     let gltfLoader = null;

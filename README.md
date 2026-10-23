@@ -27,7 +27,7 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 Browser (Vite, zero-framework UI)
   ├── index.html            landing + dashboard + converter (vanilla JS, ES modules)
   ├── public/roviel-api.js thin API client (additive; demo works without it)
-  ├── e2e/run.mjs           Playwright suite (108 checks, real browser)
+  ├── e2e/run.mjs           Playwright suite (109 checks, real browser)
   └── server/test/          Vitest money/maths unit tests (JPY, KWD, fees)
         │  HTTPS + Bearer JWT
         ▼
@@ -83,7 +83,7 @@ Open <http://localhost:5173>. Use the public converter without an account; sign 
 
 ```sh
 npm run test:unit     # minor-unit maths: JPY (1), KWD (1000), fees
-npm run test:e2e      # reseeds the demo, then runs 108 Playwright checks
+npm run test:e2e      # reseeds the demo, then runs 109 Playwright checks
 npm run smoke:prod    # web, API/DB health, FX freshness and auth boundary
 npm run lint          # oxlint
 ```
@@ -179,6 +179,8 @@ The script dumps the source, refuses a non-empty target, restores into it, compa
 - CSV exports include the original currency, kind, `amount_minor`, and the converted `home_amount` when a rate exists.
 
 ## Data sources & disclaimers
+
+The WebGL coin scene runs on Three.js 0.160, vendored under `public/vendor/three/` with its MIT licence so the signature visual has no runtime CDN dependency.
 
 Reference rates come from [Frankfurter](https://frankfurter.dev/) (central-bank blended), with a wide-coverage fallback for currencies the ECB feed does not publish. Rates are informational, dated, and can be revised — they are not provider quotes and Roviel never executes an exchange.
 

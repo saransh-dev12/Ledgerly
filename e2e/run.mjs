@@ -105,6 +105,8 @@ try {
   await page.click('[data-theme-toggle]');
   await page.waitForTimeout(1300);
   check('coin scene survives theme round trip', await sceneBound());
+  const remoteVisuals = await page.evaluate(() => [...performance.getEntriesByType('resource')].map(entry => entry.name).filter(name => /unpkg\.com/i.test(name)));
+  check('visual runtime is self-hosted', remoteVisuals.length === 0, remoteVisuals.join(','));
 
   // ================= CONVERTER =================
   await page.click('#open-currency-tools-nav');
