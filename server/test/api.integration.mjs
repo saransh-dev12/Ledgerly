@@ -6,13 +6,14 @@ const db = new PrismaClient();
 const base = (process.env.API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const testIp = `198.51.100.${Math.floor(Math.random() * 200) + 20}`;
+let signupIpCounter = 20;
 const password = 'test-password-123';
 const created = [];
 
-async function call(path, { method = 'GET', token, body } = {}) {
+async function call(path, { method = 'GET', token, body, ip } = {}) {
   const res = await fetch(base + path, {
     method,
-    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), 'X-Forwarded-For': testIp, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), 'X-Forwarded-For': ip || testIp, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const text = await res.text();
@@ -23,7 +24,8 @@ async function call(path, { method = 'GET', token, body } = {}) {
 
 async function signup(label) {
   const email = `API.Test+${stamp}-${label}@Example.COM`;
-  const res = await call('/api/auth/signup', { method: 'POST', body: { email, password } });
+  const ip = `198.51.100.${(signupIpCounter++ % 200) + 20}`;
+  const res = await call('/api/auth/signup', { method: 'POST', body: { email, password }, ip });
   assert.equal(res.status, 200, `signup ${label}: ${JSON.stringify(res.body)}`);
   assert.equal(res.body.user.email, email.toLowerCase(), 'email must be normalized');
   const user = { email: res.body.user.email, token: res.body.token, password };
@@ -252,6 +254,36 @@ async function run() {
   assert.equal(wrongDelete.status, 401);
   const badConfirm = await call('/api/auth/account', { method: 'DELETE', token: a.token, body: { password, confirm: 'delete' } });
   assert.equal(badConfirm.status, 400);
+
+  // Successful deletion revokes the session, blocks login and cascades every owned row.
+  const e = await signup('e');
+  const eUser = await db.user.findUnique({ where: { email: e.user.email } });
+  assert.ok(eUser);
+  const eFirst = (await call('/api/accounts', { token: e.token })).body[0];
+  const eSecond = await createAccount(e.token, { name: 'Delete destination', currency: 'INR' });
+  const eTx = await call('/api/transactions', { method: 'POST', token: e.token, body: { accountId: eFirst.id, kind: 'expense', amountMajor: 12, note: 'Delete me' } });
+  assert.equal(eTx.status, 201);
+  const eBudget = await call('/api/budgets', { method: 'POST', token: e.token, body: { category: 'Delete budget', limitMajor: 10, currency: 'INR', yearMonth: '2026-10' } });
+  assert.equal(eBudget.status, 201);
+  const eGoal = await call('/api/goals', { method: 'POST', token: e.token, body: { title: 'Delete goal', targetMajor: 10, currency: 'INR' } });
+  assert.equal(eGoal.status, 201);
+  const eRule = await call('/api/recurring', { method: 'POST', token: e.token, body: { title: 'Delete rule', kind: 'expense', amountMajor: 1, currency: 'INR', nextRun: new Date().toISOString() } });
+  assert.equal(eRule.status, 201);
+  const eTransfer = await call('/api/transactions/transfer', { method: 'POST', token: e.token, body: { fromAccountId: eFirst.id, toAccountId: eSecond.id, amountMajor: 5 } });
+  assert.equal(eTransfer.status, 201);
+  await call('/api/auth/forgot-password', { method: 'POST', body: { email: e.user.email } });
+  const deleted = await call('/api/auth/account', { method: 'DELETE', token: e.token, body: { password, confirm: 'DELETE' } });
+  assert.equal(deleted.status, 200);
+  assert.equal((await call('/api/auth/me', { token: e.token })).status, 401);
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: e.user.email, password } })).status, 401);
+  assert.equal(await db.user.count({ where: { email: e.user.email } }), 0);
+  assert.equal(await db.account.count({ where: { userId: eUser.id } }), 0);
+  assert.equal(await db.transaction.count({ where: { userId: eUser.id } }), 0);
+  assert.equal(await db.budget.count({ where: { userId: eUser.id } }), 0);
+  assert.equal(await db.savingsGoal.count({ where: { userId: eUser.id } }), 0);
+  assert.equal(await db.recurringRule.count({ where: { userId: eUser.id } }), 0);
+  assert.equal(await db.passwordResetToken.count({ where: { userId: eUser.id } }), 0);
+  assert.equal(await db.transactionLink.count({ where: { OR: [{ fromId: eTransfer.body.out.id }, { toId: eTransfer.body.in.id }] } }), 0);
 }
 
 try {

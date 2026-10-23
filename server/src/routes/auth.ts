@@ -26,7 +26,7 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many sign-in attempts. Try again in a minute.' },
 });
 const forgotLimiter = rateLimit({
-  windowMs: 15 * 60_000, max: 5, standardHeaders: true, legacyHeaders: false,
+  windowMs: 15 * 60_000, max: 10, standardHeaders: true, legacyHeaders: false,
   keyGenerator: (req) => `forgot:${req.ip}`,
   message: { error: 'Too many reset requests. Try again in 15 minutes.' },
 });
