@@ -125,7 +125,7 @@ Live URLs: web `https://ledgerly-phi-seven.vercel.app`, API `https://ledgerly-ap
 
 `FRONTEND_URL` is also the CORS allow-list: requests from other origins are rejected. Local development needs no env at all — the web app defaults to `http://localhost:4000` on localhost and keeps working offline in demo mode.
 
-Operational notes: the Render web service sleeps after 15 minutes idle (cold start ~30s); the free Postgres instance expires on **2026-11-22** and must be migrated to Neon/Supabase or a paid plan before then (tracked in issues).
+Operational notes: the Render web service sleeps after 15 minutes idle (cold start ~30s); the free Postgres instance expires on **2026-11-22** and must be migrated to Neon/Supabase or a paid plan before then (tracked in issues). Neither Render nor Vercel is wired to GitHub for auto-deploy in this setup, so a release is `git push`, `render deploys create srv-dbdidass728c73c30920`, then `vercel deploy --prod`, followed by the deployed smoke checks.
 
 ## Data sources & disclaimers
 
