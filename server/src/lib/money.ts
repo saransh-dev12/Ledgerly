@@ -17,7 +17,6 @@ export function minorScale(currency: string): number {
 }
 export function toMinor(amount: string | number, currency: string): bigint {
   const scale = minorScale(currency);
-  const digits = Math.round(Math.log10(scale));
   const n = Number(amount);
   if (!Number.isFinite(n)) return 0n;
   return BigInt(Math.round(n * scale));
@@ -30,7 +29,6 @@ export function toMajorUnits(minor: bigint | number | string, currency: string):
 }
 export function convertWithRate(amountMinor: bigint, rate: number, fromCur: string, toCur: string): bigint {
   const fromScale = minorScale(fromCur);
-  const toDigits = Math.round(Math.log10(minorScale(toCur)));
   // amountMajor * rate = destMajor -> destMinor
   const major = Number(amountMinor) / fromScale;
   return BigInt(Math.round(major * rate * minorScale(toCur)));

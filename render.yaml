@@ -4,12 +4,22 @@ services:
     runtime: docker
     rootDir: server
     dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: free
+    autoDeploy: false
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
         sync: false
       - key: FRANKFURTER_BASE_URL
         value: https://api.frankfurter.dev/v2

@@ -1,6 +1,6 @@
 // Roviel full-stack schema — additive, preserves demo localStorage behavior.
-// Money is stored in minor units (integer) + currency code. Converted values
-// are stored separately in transaction_valuations so originals are never lost.
+// Money is stored in minor units (integer) + currency code. Original amounts
+// and reporting rates are kept on the transaction so revaluation never rewrites them.
 
 generator client {
   provider = "prisma-client-js"
@@ -27,8 +27,6 @@ model User {
   budgets     Budget[]
   goals       SavingsGoal[]
   recurring   RecurringRule[]
-  quotes      ProviderQuote[]
-  insights    AiInsight[]
   resetTokens PasswordResetToken[]
 }
 
@@ -88,9 +86,8 @@ model Transaction {
   rateToHome  Decimal? @db.Decimal(18, 8)
   createdAt   DateTime @default(now())
 
-  linksFrom  TransactionLink[]      @relation("linkFrom")
-  linksTo    TransactionLink[]      @relation("linkTo")
-  valuations TransactionValuation[]
+  linksFrom TransactionLink[] @relation("linkFrom")
+  linksTo   TransactionLink[] @relation("linkTo")
 
   @@index([userId, bookedAt])
   @@index([accountId, bookedAt])
@@ -110,20 +107,6 @@ model TransactionLink {
 
   @@index([fromId])
   @@index([toId])
-}
-
-model TransactionValuation {
-  id            String      @id @default(cuid())
-  transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  homeCurrency  String      @db.Char(3)
-  homeMinor     BigInt
-  rate          Decimal     @db.Decimal(18, 8)
-  observedDate  String // YYYY-MM-DD from Frankfurter
-  source        String      @default("frankfurter")
-  createdAt     DateTime    @default(now())
-
-  @@index([transactionId])
 }
 
 model Budget {
@@ -185,33 +168,4 @@ model ExchangeRate {
 
   @@unique([base, quote, date])
   @@index([base, quote])
-}
-
-model ProviderQuote {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fromCurrency  String   @db.Char(3)
-  toCurrency    String   @db.Char(3)
-  providerRate  Decimal  @db.Decimal(18, 8)
-  providerLabel String   @default("")
-  fixedFeeMinor BigInt   @default(0)
-  percentFee    Decimal  @default(0) @db.Decimal(8, 4)
-  taxPercent    Decimal  @default(0) @db.Decimal(8, 4)
-  referenceRate Decimal? @db.Decimal(18, 8)
-  createdAt     DateTime @default(now())
-
-  @@index([userId])
-}
-
-model AiInsight {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String
-  body      String
-  refs      Json     @default("[]") // supporting evidence: transaction ids, totals
-  createdAt DateTime @default(now())
-
-  @@index([userId, createdAt])
 }

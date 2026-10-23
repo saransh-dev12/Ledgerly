@@ -37,13 +37,13 @@ Express API (TypeScript)
   └── lib: money (BigInt minor units) · fx (Frankfurter + wide-coverage fallback, cached in Postgres)
         │  Prisma ORM
         ▼
-PostgreSQL — 13 tables, user-scoped by userId on every query
+PostgreSQL — 10 tables, user-scoped by userId on every query
 ```
 
 **Design rules that hold everywhere**
 
 - Money is stored as **integer minor units + ISO currency** (`amountMinor`, `currency`). Never floats.
-- Original amounts and reporting values are stored **separately** (`rateToHome`, `transaction_valuations`).
+- Original amounts and the reporting rate are stored together without rewriting either (`amountMinor`, `currency`, `rateToHome`).
 - Transfers are **atomic** (`prisma.$transaction`) and both legs are linked, so a linked transfer can never be half-deleted.
 - Every query is filtered by `userId` — user isolation is enforced in the data layer, not the UI.
 - The frontend never touches the database, and the API never trusts client-supplied amounts or account ids.
@@ -163,7 +163,7 @@ DRILL_CONFIRM=RESTORE-DRILL ./scripts/restore-drill.sh
 dropdb roviel_restore_drill
 ```
 
-The script dumps the source, refuses a non-empty target, restores into it, compares every public table and migration count, and never drops the target itself. A local drill against all five migrations passed on 2026-10-23.
+The script dumps the source, refuses a non-empty target, restores into it, compares every public table and migration count, and never drops the target itself. A local drill against all six migrations passed on 2026-10-23.
 
 ### Uptime checks
 

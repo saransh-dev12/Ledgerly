@@ -193,7 +193,6 @@ try {
 
   // add transaction -> exact delta
   await page.click('.dash-side-nav [data-view="overview"]');
-  const beforeIncome = money(await page.locator('#total-income').innerText());
   const beforeSpend = money(await page.locator('#total-expenses').innerText());
   await page.click('#open-transaction');
   await page.fill('#transaction-name', 'E2E Flat 250');
