@@ -226,6 +226,21 @@ async function run() {
   assert.equal((await call('/api/summary?months=37', { token: a.token })).status, 400);
   assert.equal((await call('/api/summary?months=36', { token: a.token })).status, 200);
 
+  // CSV/export must not inherit the 200-row ledger view cap.
+  await db.transaction.createMany({
+    data: Array.from({ length: 201 }, (_, index) => ({
+      userId: a.user.id, accountId: inr1.id, kind: 'expense', amountMinor: -100n,
+      currency: 'INR', note: `Bulk export ${index}`, category: 'Other', rateToHome: 1,
+    })),
+  });
+  const cappedLedger = await call('/api/transactions', { token: a.token });
+  assert.equal(cappedLedger.body.length, 200, 'the interactive ledger remains capped');
+  const exported = await call('/api/transactions/export', { token: a.token });
+  assert.equal(exported.status, 200);
+  assert.ok(exported.body.transactions.length > 200, `export returned ${exported.body.transactions.length}`);
+  assert.equal(exported.body.homeCurrency, 'INR');
+  assert.ok(exported.body.transactions.some(t => t.note === 'Bulk export 200' && t.amountMinor === '-100'));
+
   // Home-currency changes are explicit and supported.
   const me = await call('/api/auth/me', { method: 'PATCH', token: a.token, body: { homeCurrency: 'usd' } });
   assert.equal(me.status, 200);

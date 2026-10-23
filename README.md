@@ -18,7 +18,7 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 | **Public converter** | 165+ currencies, dated reference rates, inverse rate, stale/offline states with a dated cache, popular pairs, favourites, recents, copy & share. |
 | **Quote comparator** | Enter a provider quote + fixed/percentage/tax fees; exact `BigInt` minor-unit maths with per-currency rounding. The reference rate is **never** auto-filled into the provider field. |
 | **Dashboard** | 8 dedicated views: Overview, Transactions, Accounts, Budgets, Goals, Recurring, Insights, Currency pulse. Each with a crisp headline, guidance and inline actions. |
-| **Cloud mode** | JWT auth with expiring sessions, single-use email password recovery, multi-currency accounts, atomic transfers with FX capture, budgets with burn-down bars, goals with contributions, recurring rules you can post in one tap, CSV export, deterministic insights. |
+| **Cloud mode** | JWT auth with expiring sessions, single-use email password recovery, multi-currency accounts, atomic transfers with FX capture, budgets with burn-down bars, goals with contributions, recurring rules you can post in one tap, CSV export of the full ledger with currency-native precision, deterministic insights. |
 | **Offline-first** | The anonymous demo keeps working with no API — localStorage ledger, local analytics, and an explicit "local demo" state. |
 
 ## Architecture
@@ -27,7 +27,7 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 Browser (Vite, zero-framework UI)
   ├── index.html            landing + dashboard + converter (vanilla JS, ES modules)
   ├── public/roviel-api.js thin API client (additive; demo works without it)
-  ├── e2e/run.mjs           Playwright suite (99 checks, real browser)
+  ├── e2e/run.mjs           Playwright suite (103 checks, real browser)
   └── server/test/          Vitest money/maths unit tests (JPY, KWD, fees)
         │  HTTPS + Bearer JWT
         ▼
@@ -83,7 +83,7 @@ Open <http://localhost:5173>. Use the public converter without an account; sign 
 
 ```sh
 npm run test:unit     # minor-unit maths: JPY (1), KWD (1000), fees
-npm run test:e2e      # reseeds the demo, then runs 99 Playwright checks
+npm run test:e2e      # reseeds the demo, then runs 103 Playwright checks
 npm run lint         # oxlint
 ```
 

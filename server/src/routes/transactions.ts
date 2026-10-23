@@ -81,6 +81,23 @@ router.get('/', async (req: AuthedRequest, res) => {
   res.json(txs.map(t => serializeTransaction(t as LinkedTransaction)));
 });
 
+router.get('/export', async (req: AuthedRequest, res) => {
+  const [user, txs] = await Promise.all([
+    prisma.user.findUnique({ where: { id: req.userId! }, select: { homeCurrency: true } }),
+    prisma.transaction.findMany({ where: { userId: req.userId! }, orderBy: { bookedAt: 'desc' } }),
+  ]);
+  if (!user) { res.status(404).json({ error: 'Not found' }); return; }
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    homeCurrency: user.homeCurrency,
+    transactions: txs.map(t => ({
+      ...t,
+      amountMinor: t.amountMinor.toString(),
+      rateToHome: t.rateToHome === null ? null : Number(t.rateToHome),
+    })),
+  });
+});
+
 router.post('/', async (req: AuthedRequest, res) => {
   const s = z.object({
     accountId: z.string(), kind: z.enum(['income', 'expense']),

@@ -42,6 +42,7 @@
       try { await fetch(getBase() + '/api/auth/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }); } catch {}
     },
     listTransactions: () => req('/api/transactions'),
+    exportTransactions: () => req('/api/transactions/export'),
     createTransaction: (b) => req('/api/transactions', { method: 'POST', body: JSON.stringify(b) }),
     transfer: (b) => req('/api/transactions/transfer', { method: 'POST', body: JSON.stringify(b) }),
     fxRate: (b, q, d) => fetch(getBase() + `/api/fx/rate?base=${b}&quote=${q}${d ? `&date=${d}` : ''}`).then(r => r.json()),

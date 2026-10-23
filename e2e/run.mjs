@@ -66,7 +66,13 @@ try {
 
   // scroll snap = one scroll, one section
   await page.evaluate(() => window.scrollTo({ top: (document.documentElement.scrollHeight - window.innerHeight) * 0.2, behavior: 'instant' }));
-  await page.waitForTimeout(1100);
+  await page.waitForFunction(() => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    if (max <= 0) return false;
+    const ratio = window.scrollY / max;
+    return [0, 0.34, 0.62, 0.94].some(stop => Math.abs(stop - ratio) < 0.03);
+  }, { timeout: 6000 }).catch(() => {});
+  await page.waitForTimeout(200);
   const snap = await page.evaluate(() => window.scrollY / (document.documentElement.scrollHeight - window.innerHeight));
   check('scroll snaps to a section', Math.abs(snap - 0.34) < 0.03, 'ratio ' + snap.toFixed(3));
   await page.waitForFunction(() => document.querySelector('#slide-2-img')?.classList.contains('active'), { timeout: 5000 }).catch(() => {});
@@ -417,6 +423,21 @@ try {
   await page.waitForTimeout(2000);
   check('budget delete removes it', (await api(page, '/api/budgets')).body.every(b => b.category !== cat));
   check('budgets view no longer shows the test budget', !(await page.locator('#budget-list').innerText()).includes(cat));
+
+  // cloud CSV export keeps three-decimal currencies intact and comes from the full export endpoint
+  const kwdAccount = await api(page, '/api/accounts', { method: 'POST', body: JSON.stringify({ name: 'KWD E2E', currency: 'KWD', openingMajor: 0 }) });
+  check('KWD account created for export', kwdAccount.status === 201, kwdAccount.status);
+  const kwdEntry = await api(page, '/api/transactions', { method: 'POST', body: JSON.stringify({ accountId: kwdAccount.body.id, kind: 'expense', amountMajor: 1.234, note: 'KWD precision E2E', category: 'Other' }) });
+  check('KWD entry stores three decimals', kwdEntry.status === 201 && kwdEntry.body.amountMinor === '-1234', kwdEntry.body.amountMinor);
+  await page.evaluate(() => window.RovielCloud.loadCloud());
+  await page.click('.dash-side-nav [data-view="transactions"]');
+  await page.waitForTimeout(800);
+  const [cloudDownload] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }).catch(() => null), page.click('#export-csv')]);
+  check('cloud CSV downloads', !!cloudDownload, cloudDownload ? await cloudDownload.suggestedFilename() : 'none');
+  if (cloudDownload) {
+    const cloudCsv = fs.readFileSync(await cloudDownload.path(), 'utf8').replace(/^\ufeff/, '');
+    check('CSV preserves KWD precision and minor units', cloudCsv.includes('KWD precision E2E') && cloudCsv.includes(',-1.234,KWD,-1234,'), cloudCsv.split(/\r?\n/).find(line => line.includes('KWD precision E2E')) || 'missing row');
+  }
 
   // sign out
   await page.click('#auth-button');

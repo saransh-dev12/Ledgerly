@@ -2280,25 +2280,62 @@
       document.getElementById('export-csv').onclick = exportCSV;
     }
 
-    function exportCSV() {
+    async function exportCSV() {
+      let source = transactions;
+      let homeCurrency = dashState.homeCurrency || 'INR';
+      if (window.RovielAPI && window.RovielAPI.isCloud()) {
+        try {
+          const payload = await window.RovielAPI.exportTransactions();
+          source = Array.isArray(payload.transactions) ? payload.transactions : [];
+          homeCurrency = payload.homeCurrency || homeCurrency;
+        } catch (error) {
+          showDashboardToast('Could not prepare the cloud export. Try again.');
+          return;
+        }
+      }
       const cell = value => {
         const text = value === null || value === undefined ? '' : String(value);
         return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
       };
+      const currencyDigits = currency => Math.round(Math.log10(minorScale(currency)));
+      const exactMajor = (minorValue, currency) => {
+        const digits = currencyDigits(currency);
+        const scale = 10n ** BigInt(digits);
+        const value = BigInt(minorValue);
+        const absolute = value < 0n ? -value : value;
+        const whole = absolute / scale;
+        const fraction = absolute % scale;
+        return (value < 0n ? '-' : '') + whole.toString() + (digits ? '.' + fraction.toString().padStart(digits, '0') : '');
+      };
       const heading = ['id', 'date', 'description', 'category', 'kind', 'amount_major', 'currency', 'amount_minor', 'home_currency', 'home_amount', 'note'];
-      const rows = [heading].concat(transactions.map(t => {
+      const rows = [heading].concat(source.map(t => {
         const currency = t.currency || 'INR';
         const minor = t.amountMinor !== undefined ? BigInt(t.amountMinor) : BigInt(Math.round(Number(t.amount || 0) * minorScale(currency)));
-        const kind = t.kind || (t.type === 'income' ? 'income' : 'expense');
-        const home = t.home === null || t.home === undefined ? '' : Number(t.home).toFixed(2);
-        return [t.id, t.dateISO || t.date, t.name, t.category, kind, toMajorUnits(minor, currency).toFixed(minorScale(currency) === 1 ? 0 : 2), currency, minor.toString(), dashState.homeCurrency, home, t.name];
+        const kind = t.kind || (t.type === 'income' ? 'income' : t.type === 'transfer_in' ? 'transfer_in' : t.type === 'transfer_out' ? 'transfer_out' : 'expense');
+        let homeMajor = null;
+        if (t.home !== null && t.home !== undefined && Number.isFinite(Number(t.home))) homeMajor = Number(t.home);
+        else if (t.rateToHome !== null && t.rateToHome !== undefined && Number(t.rateToHome) > 0) homeMajor = toMajorUnits(minor, currency) * Number(t.rateToHome);
+        const description = t.name || t.note || '';
+        return [
+          t.id,
+          t.dateISO || t.date || (t.bookedAt ? String(t.bookedAt).slice(0, 10) : ''),
+          description,
+          t.category,
+          kind,
+          exactMajor(minor, currency),
+          currency,
+          minor.toString(),
+          homeCurrency,
+          homeMajor === null ? '' : homeMajor.toFixed(currencyDigits(homeCurrency)),
+          t.note || description,
+        ];
       }));
       const blob = new Blob(['\ufeff' + rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
       const stamp = new Date().toISOString().slice(0, 10);
       a.href = URL.createObjectURL(blob); a.download = `roviel-transactions-${stamp}.csv`; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      showDashboardToast('Exported CSV with original currencies and minor units.');
+      showDashboardToast(`Exported ${source.length} ${source.length === 1 ? 'entry' : 'entries'} with original currencies and minor units.`);
     }
 
     async function deleteTransactionItem(id) {
