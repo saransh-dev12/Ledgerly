@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { createResetToken, hashPassword, hashResetToken, verifyPassword, signToken } from '../lib/auth.js';
 import { sendPasswordResetEmail } from '../lib/email.js';
-import { appBaseUrl } from '../config.js';
+import { appBaseUrl, isProduction } from '../config.js';
 import { requireAuth, type AuthedRequest } from '../middleware/requireAuth.js';
 import rateLimit from 'express-rate-limit';
 import { normalizeCurrency } from '../lib/money.js';
@@ -84,6 +84,10 @@ router.post('/login', loginLimiter, async (req, res) => {
 });
 
 router.post('/forgot-password', forgotLimiter, async (req, res) => {
+  if (isProduction && (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM)) {
+    res.status(503).json({ error: 'Password recovery email is not configured yet. Contact support.' });
+    return;
+  }
   const parsed = z.object({ email: z.string().trim().email().max(254) }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: 'Enter a valid email address.' }); return; }
   const email = parsed.data.email.toLowerCase();

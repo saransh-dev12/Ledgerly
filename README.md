@@ -121,22 +121,22 @@ The E2E suite drives a real Chromium instance and asserts exact values rather th
 | --- | --- | --- |
 | Frontend | Vercel | `vercel.json` |
 | API | Render (Docker) | `render.yaml` |
-| Database | Render Postgres (free) | `server/prisma/migrations` |
+| Database | Neon Postgres (free) | `server/prisma/migrations` |
 
 Live URLs: web `https://roviel.vercel.app`, API `https://ledgerly-api-4yhc.onrender.com` (Render service `roviel-api`, Singapore, Docker, `rootDir: server`).
 
-1. **Database** — create a free Render Postgres in the same region as the API and copy its **internal** connection string for the service. External connections are closed until the source IP is allow-listed; to seed from a laptop, add your own IP (`render postgres update <db> --ip-allow-list "cidr=<ip>/32,description=seed"`), append `?sslmode=require`, run the seed, then clear the list (`--clear-ip-allow-list`).
-2. **API** — create a Render Docker web service with `rootDir: server`, health check `/health`, and env `DATABASE_URL`, `FRONTEND_URL` (comma-separated allow-list for the web origins), `APP_URL`, `JWT_SECRET`, `RESEND_API_KEY` and `EMAIL_FROM`. The image installs OpenSSL 3 so Prisma's schema engine can run; the container executes `prisma migrate deploy` before starting the server.
+1. **Database** — create a free Neon Postgres project through the Vercel Marketplace (Singapore `sin1`) and use the **direct/unpooled** connection string for Render. Keep the pooled URL for serverless clients if one is added later. Run `prisma migrate deploy` and restore the latest dump before pointing production at it.
+2. **API** — create a Render Docker web service with `rootDir: server`, health check `/health`, and env `DATABASE_URL` (Neon direct), `FRONTEND_URL` (comma-separated allow-list for the web origins), `APP_URL`, `JWT_SECRET`, plus `RESEND_API_KEY` and `EMAIL_FROM` when recovery email is enabled. The image installs OpenSSL 3 so Prisma's schema engine can run; the container executes `prisma migrate deploy` before starting the server. Auto-deploy is intentionally disabled on Render so database migrations are never triggered by an ordinary push.
 3. **Frontend** — the Vercel project is linked locally (`.vercel/`, gitignored) and `VITE_API_URL` is set for Production and Preview. Deploy with `vercel --prod`, which rebuilds the bundle with the API URL baked in; the value takes precedence over `meta[name="roviel-api"]` and the localStorage override. The project is not connected to GitHub yet, so pushing alone does not deploy the frontend.
 4. **Seed the demo** — `DATABASE_URL='<external-url>?sslmode=require' npm run db:seed`. The seed resets the demo user's data, so never point it at real users.
 
 `FRONTEND_URL` is also the CORS allow-list: requests from other origins are rejected. Local development needs no env at all — the web app defaults to `http://localhost:4000` on localhost and keeps working offline in demo mode.
 
-Operational notes: the Render web service sleeps after 15 minutes idle (cold start ~30s); the free Postgres instance expires on **2026-11-22**. Phase 1 targets **Neon Postgres** (free tier, no 30-day expiry) and **Resend** for recovery email; the production migration remains pending provider credentials and explicit authorization (issue #8). Neither Render nor Vercel is wired to GitHub for auto-deploy in this setup, so a release is `git push`, `render deploys create srv-dbdidass728c73c30920`, then `vercel deploy --prod`, followed by the deployed smoke checks.
+Operational notes: the Render web service sleeps after 15 minutes idle (cold start ~30s). Production now uses **Neon Postgres** in Singapore; the old Render database is kept temporarily for rollback and is no longer read by the API. Render auto-deploy is disabled deliberately. Vercel frontend auto-deploy needs the GitHub login connection added in the Vercel dashboard, so a release is `git push`, `render deploys create srv-dbdidass728c73c30920`, then `vercel deploy --prod`, followed by `npm run smoke:prod`.
 
 ## Backup and recovery
 
-The Render free plan does not include automated backups, and the demo database expires on **2026-11-22**. The selected replacement is **Neon Postgres**; migration is tracked in issue #8. Until the production migration is authorized, take an off-platform dump whenever real data is entered:
+Production data now lives on Neon Postgres. Take an off-platform dump before migrations or destructive changes; the free Neon plan is not a substitute for your own backup policy:
 
 ```sh
 # External access must be allowed for your IP first (Render dashboard or CLI).
@@ -163,7 +163,7 @@ DRILL_CONFIRM=RESTORE-DRILL ./scripts/restore-drill.sh
 dropdb roviel_restore_drill
 ```
 
-The script dumps the source, refuses a non-empty target, restores into it, compares every public table and migration count, and never drops the target itself. A local drill against all six migrations passed on 2026-10-23.
+The script dumps the source, refuses a non-empty target, restores into it, compares every public table and migration count, and never drops the target itself. A local drill against all six migrations passed on 2026-10-23, and the same restore drill was run from the old Render database into Neon before the production cutover.
 
 ### Uptime checks
 
@@ -172,7 +172,7 @@ The script dumps the source, refuses a non-empty target, restores into it, compa
 ## Security and correctness notes
 
 - Production startup refuses to boot with a missing/default `JWT_SECRET`, no `DATABASE_URL`, or a wildcard/empty `FRONTEND_URL`. Access tokens last 12 hours; logout and password changes increment `tokenVersion` so old sessions are revoked server-side.
-- Password-reset tokens are random 256-bit values stored only as SHA-256 hashes, expire after 30 minutes, are single-use, and are invalidated by a newer request. Forgot-password responses are intentionally identical for registered and unknown emails. Reset links are delivered by Resend in production; local development logs the link instead.
+- Password-reset tokens are random 256-bit values stored only as SHA-256 hashes, expire after 30 minutes, are single-use, and are invalidated by a newer request. Forgot-password responses are intentionally identical for registered and unknown emails. Reset links are delivered by Resend in production; local development logs the link instead. Until `RESEND_API_KEY` and `EMAIL_FROM` are configured, production returns a clear 503 instead of pretending the email was sent.
 - New accounts start at **zero** — the app never invents an opening balance. Demo data is seeded explicitly and labelled as a demo.
 - Entries can only use the currency of their account. Missing FX quotes are reported as unavailable (`null`) rather than converted at `1`.
 - Account deletion requires the account password plus the exact word `DELETE`; an account with entries cannot be removed, and at least one account must remain.
