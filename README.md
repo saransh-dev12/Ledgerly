@@ -201,6 +201,14 @@ Reference rates come from [Frankfurter](https://frankfurter.dev/) (central-bank 
 - Goals with identical `createdAt` reordered after an update, so the row you contributed to appeared to change.
 - The dashboard topbar overflowed on 800–1050px screens and the landing header pushed its primary action off-screen at ~800px.
 
+## Known limitations
+
+- Render's free web service sleeps after 15 minutes idle, so the first cloud request can take around 30 seconds.
+- Password-recovery email is implemented, but production returns a clear 503 until a free Resend sender/domain is configured with `RESEND_API_KEY` and `EMAIL_FROM`. It never pretends a reset email was sent when delivery is unavailable.
+- Vercel frontend auto-deploy still requires the account's GitHub login connection in Vercel; until then releases use `vercel deploy --prod`.
+- The old Render Postgres is retained temporarily for rollback, is no longer read by the API and will expire naturally. Neon's free tier has its own compute/storage limits.
+- Refresh-token rotation and optional TOTP are not part of V1 and remain tracked in issue #10.
+
 ## Privacy
 
 Roviel stores only what you enter, scoped to your account, and deletes everything when you delete your account. The anonymous demo never leaves the browser. There is no third-party analytics and no advertising tracking.
