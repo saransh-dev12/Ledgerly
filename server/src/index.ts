@@ -14,11 +14,12 @@ import insights from './routes/insights.js';
 import summary from './routes/summary.js';
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: (process.env.FRONTEND_URL || '').split(',').filter(Boolean), credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 app.use(morgan('tiny'));
-app.use(rateLimit({ windowMs: 60_000, max: 120 }));
+app.use(rateLimit({ windowMs: 60_000, max: 240, standardHeaders: true, legacyHeaders: false, skip: (req) => req.path === '/health' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'ledgerly-api', time: new Date().toISOString() }));
 app.use('/api/auth', auth);

@@ -400,6 +400,25 @@ try {
   await off.waitForTimeout(700);
   check('offline: local save works', (await off.locator('#transaction-list').innerText()).includes('Offline entry'));
   await off.close();
+  // ================= AUTH HARDENING =================
+  const auth = await newPage();
+  await auth.goto(WEB, { waitUntil: 'networkidle' });
+  await auth.click('.contact-btn');
+  await auth.waitForSelector('#dashboard-view.open');
+  await login(auth);
+  const logout = await api(auth, '/api/auth/logout', { method: 'POST' });
+  check('auth: logout succeeds', logout.status === 200, logout.status);
+  const revoked = await api(auth, '/api/summary?months=1');
+  check('auth: revoked token rejected', revoked.status === 401, revoked.status);
+  const codes = [];
+  for (let i = 0; i < 12; i++) {
+    codes.push(await auth.evaluate(async (apiBase) => {
+      const res = await fetch(apiBase + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'limit-test@ledgerly.app', password: 'wrong-password' }) });
+      return res.status;
+    }, API));
+  }
+  check('auth: failed logins rate-limited', codes.includes(429), codes.join(','));
+  await auth.close();
 } catch (e) {
   console.log('SUITE ABORT:', String(e).slice(0, 400));
 }

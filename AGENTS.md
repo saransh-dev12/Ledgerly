@@ -14,6 +14,7 @@
 ```sh
 npm run build
 npm run api:build
+npm run test:unit
 node --check <inline JS>    # or rely on the build for index.html
 npm run test:e2e            # reseeds the demo; requires Postgres + API + web running
 ```

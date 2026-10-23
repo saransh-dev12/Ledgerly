@@ -18,6 +18,7 @@ model User {
   displayName  String   @default("My workspace")
   homeCurrency String   @default("INR") @db.Char(3)
   locale       String   @default("en-IN")
+  tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

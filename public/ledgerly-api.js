@@ -28,7 +28,12 @@
     isCloud() { return !!getBase() && !!localStorage.getItem(tokenKey); },
     async signup(email, password) { const r = await req('/api/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) }); localStorage.setItem(tokenKey, r.token); return r; },
     async login(email, password) { const r = await req('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }); localStorage.setItem(tokenKey, r.token); return r; },
-    logout() { localStorage.removeItem(tokenKey); },
+    async logout() {
+      const token = localStorage.getItem(tokenKey);
+      localStorage.removeItem(tokenKey);
+      if (!token) return;
+      try { await fetch(getBase() + '/api/auth/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }); } catch {}
+    },
     listTransactions: () => req('/api/transactions'),
     createTransaction: (b) => req('/api/transactions', { method: 'POST', body: JSON.stringify(b) }),
     transfer: (b) => req('/api/transactions/transfer', { method: 'POST', body: JSON.stringify(b) }),
