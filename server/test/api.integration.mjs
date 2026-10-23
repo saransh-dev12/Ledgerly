@@ -229,6 +229,18 @@ async function run() {
   assert.equal((await call('/api/summary?months=37', { token: a.token })).status, 400);
   assert.equal((await call('/api/summary?months=36', { token: a.token })).status, 200);
 
+  // Goals can be edited and deleted, and neither action crosses user boundaries.
+  const goal = await call('/api/goals', { method: 'POST', token: a.token, body: { title: 'Editable goal', targetMajor: 1000, currency: 'INR' } });
+  assert.equal(goal.status, 201);
+  const editedGoal = await call(`/api/goals/${goal.body.id}`, { method: 'PATCH', token: a.token, body: { title: 'Edited goal', targetMajor: 7500 } });
+  assert.equal(editedGoal.status, 200);
+  assert.equal(editedGoal.body.title, 'Edited goal');
+  assert.equal(editedGoal.body.targetMinor, '750000');
+  assert.equal((await call(`/api/goals/${goal.body.id}`, { method: 'PATCH', token: b.token, body: { title: 'Not mine' } })).status, 404);
+  assert.equal((await call(`/api/goals/${goal.body.id}`, { method: 'DELETE', token: b.token })).status, 404);
+  assert.equal((await call(`/api/goals/${goal.body.id}`, { method: 'DELETE', token: a.token })).status, 204);
+  assert.ok(!(await call('/api/goals', { token: a.token })).body.some(item => item.id === goal.body.id));
+
   // CSV/export must not inherit the 200-row ledger view cap.
   await db.transaction.createMany({
     data: Array.from({ length: 201 }, (_, index) => ({

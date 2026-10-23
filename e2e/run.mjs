@@ -59,6 +59,7 @@ try {
   const page = await newPage();
   await page.goto(WEB, { waitUntil: 'domcontentloaded' });
   await ready(page);
+  await page.waitForFunction(() => document.title.includes('Roviel') && document.querySelectorAll('.slide').length === 4, { timeout: 10000 }).catch(() => {});
   check('landing loads', (await page.title()).includes('Roviel'));
   check('4 story slides', (await page.locator('.slide').count()) === 4);
   check('sign-in visible on desktop', await page.locator('#open-auth-modal').isVisible());
@@ -364,6 +365,27 @@ try {
   await page.waitForTimeout(2600);
   const goalAfter = money((await page.locator('#goal-list .goal-row', { hasText: 'Emergency fund' }).innerText()).split('of')[0]);
   check('goal contribute adds exactly 1000', near(goalAfter - goalBefore, 1000, 1), `${goalBefore} -> ${goalAfter}`);
+
+  // goals can be created, edited and deleted from the dashboard
+  const goalTitle = 'E2E Goal ' + Date.now().toString(36);
+  await page.fill('#new-goal-title', goalTitle);
+  await page.fill('#new-goal-target', '5000');
+  await page.click('#add-goal');
+  await page.waitForTimeout(2000);
+  const newGoalRow = page.locator('#goal-list .goal-row', { hasText: goalTitle });
+  check('created goal is visible', (await newGoalRow.count()) === 1);
+  const prompts = ['E2E Goal edited', '7500'];
+  const answerPrompts = async dialog => { await dialog.accept(prompts.shift() ?? ''); };
+  page.on('dialog', answerPrompts);
+  await newGoalRow.locator('[data-goal-edit]').click();
+  await page.waitForTimeout(2200);
+  page.off('dialog', answerPrompts);
+  const editedGoalRow = page.locator('#goal-list .goal-row', { hasText: 'E2E Goal edited' });
+  check('goal edit updates title and target', (await editedGoalRow.count()) === 1 && (await editedGoalRow.innerText()).includes('7,500'), (await editedGoalRow.innerText()).replace(/\n/g, ' ').slice(0, 90));
+  page.once('dialog', dialog => dialog.accept());
+  await editedGoalRow.locator('[data-goal-del]').click();
+  await page.waitForTimeout(2200);
+  check('goal delete removes the row', (await page.locator('#goal-list .goal-row', { hasText: 'E2E Goal edited' }).count()) === 0);
 
   // recurring post creates exactly one transaction
   await page.click('.dash-side-nav [data-view="recurring"]');

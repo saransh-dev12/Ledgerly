@@ -1182,8 +1182,14 @@
     .budget-row-foot .row-del:hover, .budget-row-foot .row-del:focus-visible { opacity: 1; }
     [data-theme="brutal"] .budget-row-foot .row-del { border: 0; background: transparent; }
     [data-theme="brutal"] .budget-row-foot .row-del:hover { background: var(--red); }
-    .goal-row-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
+    .goal-row-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; flex-wrap: wrap; }
     .goal-row-foot .mini-form { margin-top: 0; }
+    .goal-row-tools { display: flex; align-items: center; gap: 8px; }
+    .goal-row-actions { display: flex; align-items: center; gap: 3px; }
+    .goal-row-actions .row-del { width: 20px; min-width: 20px; height: 20px; min-height: 20px; border-color: transparent; border-radius: 50%; opacity: .55; font-size: 11px; }
+    .goal-row-actions .row-del:hover, .goal-row-actions .row-del:focus-visible { opacity: 1; }
+    [data-theme="brutal"] .goal-row-actions .row-del { border: 0; background: transparent; }
+    [data-theme="brutal"] .goal-row-actions .row-del:hover { background: var(--accent); }
     .rec-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 30px; align-items: center; gap: 12px; }
     .rec-row strong { display: block; color: var(--text); font-size: 12.5px; font-weight: 500; }
     .rec-meta { display: block; margin-top: 3px; color: var(--faint); font-size: 10px; }
@@ -3842,7 +3848,26 @@
             catch (error) { showDashboardToast(String(error.message)); btn.disabled = false; }
           }));
           const gl = document.getElementById('goal-list');
-          if (gl) gl.innerHTML = (summary.goals || []).length ? summary.goals.map(g => `<li class="goal-row"><div class="goal-row-top"><strong>${escapeHtml(g.title)}</strong><span>${escapeHtml(formatMoney(g.savedMajor, g.currency))} <span class="muted-cur">of ${escapeHtml(formatMoney(g.targetMajor, g.currency))}</span></span></div><span class="bar"><i style="width:${Math.min(100, g.pct)}%"></i></span><div class="goal-row-foot"><span class="budget-meta">${g.pct}% · ${escapeHtml(formatMoney(Math.max(0, g.remainingMajor), g.currency))} to go</span><span class="mini-form"><input type="number" min="1" placeholder="Add" data-contrib="${escapeHtml(g.id)}" aria-label="Contribute to ${escapeHtml(g.title)}"><button type="button" data-goal="${escapeHtml(g.id)}">Contribute</button></span></div></li>`).join('') : '<li>No goals yet.</li>';
+          if (gl) gl.innerHTML = (summary.goals || []).length ? summary.goals.map(g => `<li class="goal-row"><div class="goal-row-top"><strong>${escapeHtml(g.title)}</strong><span>${escapeHtml(formatMoney(g.savedMajor, g.currency))} <span class="muted-cur">of ${escapeHtml(formatMoney(g.targetMajor, g.currency))}</span></span></div><span class="bar"><i style="width:${Math.min(100, g.pct)}%"></i></span><div class="goal-row-foot"><span class="budget-meta">${g.pct}% · ${escapeHtml(formatMoney(Math.max(0, g.remainingMajor), g.currency))} to go</span><span class="goal-row-tools"><span class="goal-row-actions"><button class="row-del" type="button" data-goal-edit="${escapeHtml(g.id)}" data-title="${escapeHtml(g.title)}" data-target="${escapeHtml(g.targetMajor)}" title="Edit goal" aria-label="Edit ${escapeHtml(g.title)}">✎</button><button class="row-del" type="button" data-goal-del="${escapeHtml(g.id)}" data-title="${escapeHtml(g.title)}" title="Delete goal" aria-label="Delete ${escapeHtml(g.title)}">×</button></span><span class="mini-form"><input type="number" min="1" placeholder="Add" data-contrib="${escapeHtml(g.id)}" aria-label="Contribute to ${escapeHtml(g.title)}"><button type="button" data-goal="${escapeHtml(g.id)}">Contribute</button></span></span></div></li>`).join('') : '<li>No goals yet.</li>';
+          gl?.querySelectorAll('[data-goal-edit]').forEach(btn => btn.addEventListener('click', async () => {
+            const title = prompt('Goal title', btn.dataset.title);
+            if (title === null) return;
+            const targetRaw = prompt('Target amount', btn.dataset.target);
+            if (targetRaw === null) return;
+            const target = Number(targetRaw);
+            if (!title.trim() || !Number.isFinite(target) || target <= 0) { showDashboardToast('Enter a title and a target greater than zero.'); return; }
+            await runMutation(btn, async () => {
+              await cloudPatch('/api/goals/' + btn.dataset.goalEdit, { title: title.trim(), targetMajor: target });
+              await loadCloud();
+            }, 'Goal updated.');
+          }));
+          gl?.querySelectorAll('[data-goal-del]').forEach(btn => btn.addEventListener('click', async () => {
+            if (!confirm(`Delete the goal “${btn.dataset.title}”?`)) return;
+            await runMutation(btn, async () => {
+              await cloudDelete('/api/goals/' + btn.dataset.goalDel);
+              await loadCloud();
+            }, 'Goal deleted.');
+          }));
           gl?.querySelectorAll('[data-goal]').forEach(btn => btn.addEventListener('click', async () => {
             const id = btn.dataset.goal;
             const input = gl.querySelector(`[data-contrib="${id}"]`);

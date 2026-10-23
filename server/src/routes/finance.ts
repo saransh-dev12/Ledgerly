@@ -53,6 +53,33 @@ router.post('/goals', async (req: AuthedRequest, res) => {
   const g = await prisma.savingsGoal.create({ data: { userId: req.userId!, title: s.data.title, targetMinor: toMinor(s.data.targetMajor, currency), currency, deadline } });
   res.status(201).json({ ...g, targetMinor: g.targetMinor.toString(), savedMinor: g.savedMinor.toString() });
 });
+router.patch('/goals/:id', async (req: AuthedRequest, res) => {
+  const s = z.object({
+    title: z.string().trim().min(1).max(80).optional(),
+    targetMajor: z.number().finite().positive().max(1_000_000_000_000).optional(),
+    deadline: z.string().nullable().optional(),
+  }).safeParse(req.body);
+  if (!s.success) { res.status(400).json({ error: s.error.issues[0]?.message }); return; }
+  const g = await prisma.savingsGoal.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  if (!g) { res.status(404).json({ error: 'Not found' }); return; }
+  const deadline = s.data.deadline === undefined ? undefined : s.data.deadline === null ? null : new Date(s.data.deadline);
+  if (deadline instanceof Date && !Number.isFinite(deadline.getTime())) { res.status(400).json({ error: 'Enter a valid deadline.' }); return; }
+  const updated = await prisma.savingsGoal.update({
+    where: { id: g.id },
+    data: {
+      ...(s.data.title !== undefined ? { title: s.data.title } : {}),
+      ...(s.data.targetMajor !== undefined ? { targetMinor: toMinor(s.data.targetMajor, g.currency) } : {}),
+      ...(deadline !== undefined ? { deadline } : {}),
+    },
+  });
+  res.json({ ...updated, targetMinor: updated.targetMinor.toString(), savedMinor: updated.savedMinor.toString() });
+});
+router.delete('/goals/:id', async (req: AuthedRequest, res) => {
+  const g = await prisma.savingsGoal.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  if (!g) { res.status(404).json({ error: 'Not found' }); return; }
+  await prisma.savingsGoal.delete({ where: { id: g.id } });
+  res.status(204).end();
+});
 router.post('/goals/:id/contribute', async (req: AuthedRequest, res) => {
   const s = z.object({ amountMajor: z.number().finite().positive().max(1_000_000_000_000) }).safeParse(req.body);
   if (!s.success) { res.status(400).json({ error: 'Invalid amount' }); return; }
