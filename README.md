@@ -27,7 +27,8 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 Browser (Vite, zero-framework UI)
   ├── index.html            landing + dashboard + converter (vanilla JS, ES modules)
   ├── public/ledgerly-api.js thin API client (additive; demo works without it)
-  └── e2e/run.mjs           Playwright suite (81 checks, real browser)
+  ├── e2e/run.mjs           Playwright suite (81 checks, real browser)
+  └── server/test/          Vitest money/maths unit tests (JPY, KWD, fees)
         │  HTTPS + Bearer JWT
         ▼
 Express API (TypeScript)
@@ -81,6 +82,7 @@ Open <http://localhost:5173>. Use the public converter without an account; sign 
 ## Testing
 
 ```sh
+npm run test:unit     # minor-unit maths: JPY (1), KWD (1000), fees
 npm run test:e2e      # reseeds the demo, then runs 81 Playwright checks
 npm run lint         # oxlint
 ```

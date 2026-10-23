@@ -30,6 +30,7 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix server
       - run: npm run lint
+      - run: npm run test:unit
       - run: npm run build
       - run: npm run api:build
 

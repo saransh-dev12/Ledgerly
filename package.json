@@ -12,7 +12,8 @@
     "api:dev": "npm run dev --prefix server",
     "api:build": "npm run build --prefix server",
     "db:migrate": "npm run prisma:migrate --prefix server",
-    "db:seed": "npm run seed --prefix server"
+    "db:seed": "npm run seed --prefix server",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
