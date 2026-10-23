@@ -248,6 +248,14 @@ try {
   await page.fill('#transaction-search', '');
   await page.waitForTimeout(400);
 
+  // formula-like descriptions must be neutralized in the CSV export
+  await page.click('#open-transaction-2');
+  await page.fill('#transaction-name', '=1+1');
+  await page.fill('#transaction-amount', '1');
+  await page.selectOption('#transaction-type', 'expense');
+  await page.click('.tx-submit');
+  await page.waitForTimeout(700);
+
   check('breakdown renders', (await page.locator('#category-breakdown').innerText()).includes('% of spending'));
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 8000 }).catch(() => null), page.click('#export-csv')]);
   check('export CSV downloads', !!download, download ? await download.suggestedFilename() : 'none');
@@ -255,6 +263,7 @@ try {
     const csv = fs.readFileSync(await download.path(), 'utf8').replace(/^\ufeff/, '');
     const header = csv.split(/\r?\n/)[0];
     check('CSV carries currency and minor units', /amount_minor/.test(header) && /currency/.test(header) && /home_amount/.test(header) && csv.includes(',INR,'), header);
+    check('CSV neutralizes spreadsheet formulas', csv.includes("'=1+1") && !csv.includes(',=1+1,'), csv.split(/\r?\n/).find(line => line.includes('=1+1')) || 'formula row missing');
   }
 
   // ================= CLOUD MODE =================
@@ -572,6 +581,56 @@ try {
   await recovery.click('#auth-signup');
   check('recovery: back to sign in works', (await recovery.locator('#auth-title').innerText()) === 'Sign in to Roviel');
   await recovery.close();
+
+  // ================= RECOVERY CODES =================
+  const recEmail = `recovery-e2e-${Date.now()}@example.com`;
+  const recOldPassword = 'recovery-old-123';
+  const recNewPassword = 'recovery-new-456';
+  const recSignup = await fetch(API + '/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: recEmail, password: recOldPassword }) });
+  check('recovery: test account created', recSignup.status === 200, recSignup.status);
+  const recPage = await newPage();
+  await recPage.goto(WEB, { waitUntil: 'domcontentloaded' });
+  await ready(recPage);
+  await openDashboard(recPage);
+  await recPage.click('#auth-button');
+  await recPage.waitForSelector('#auth-modal.open');
+  await recPage.fill('#auth-email', recEmail);
+  await recPage.fill('#auth-password', recOldPassword);
+  await recPage.click('#auth-submit');
+  await recPage.waitForFunction(() => document.querySelector('#cloud-status')?.textContent.includes('CLOUD SYNC'), { timeout: 20000 });
+  await recPage.waitForTimeout(1200);
+  await recPage.click('.dash-side-nav [data-view="accounts"]');
+  await recPage.waitForTimeout(700);
+  await recPage.fill('#recovery-generate-password', recOldPassword);
+  recPage.once('dialog', dialog => dialog.accept());
+  await recPage.click('#generate-recovery-codes');
+  await recPage.waitForFunction(() => document.querySelectorAll('#recovery-code-list code').length === 10, { timeout: 10000 });
+  const recoveryCodes = await recPage.locator('#recovery-code-list code').allInnerTexts();
+  check('recovery: ten single-use codes generated', recoveryCodes.length === 10 && recoveryCodes.every(code => code.startsWith('ROV-')), recoveryCodes.length + ' codes');
+  await recPage.click('#auth-button');
+  await recPage.waitForTimeout(600);
+  check('recovery: signing out hides the codes', await recPage.locator('#recovery-codes-output').isHidden());
+  await recPage.click('#auth-button');
+  await recPage.waitForSelector('#auth-modal.open');
+  await recPage.click('#auth-forgot');
+  check('recovery: saved-code option is available', await recPage.locator('#auth-use-recovery').isVisible());
+  await recPage.click('#auth-use-recovery');
+  check('recovery: saved-code form opens', (await recPage.locator('#auth-title').innerText()) === 'Use a recovery code');
+  await recPage.fill('#auth-email', recEmail);
+  await recPage.fill('#auth-recovery-code', recoveryCodes[0]);
+  await recPage.fill('#auth-password', recNewPassword);
+  await recPage.fill('#auth-password-confirm', recNewPassword);
+  await recPage.click('#auth-submit');
+  await recPage.waitForFunction(() => /Password updated/.test(document.querySelector('#auth-error')?.textContent || ''), { timeout: 10000 });
+  check('recovery: code resets the password', (await recPage.locator('#auth-error').innerText()).includes('Password updated'));
+  await recPage.fill('#auth-email', recEmail);
+  await recPage.fill('#auth-password', recNewPassword);
+  await recPage.click('#auth-submit');
+  await recPage.waitForFunction(() => document.querySelector('#cloud-status')?.textContent.includes('CLOUD SYNC'), { timeout: 20000 });
+  check('recovery: new password signs in', (await recPage.locator('#cloud-status').innerText()).includes('CLOUD SYNC'));
+  const recDelete = await api(recPage, '/api/auth/account', { method: 'DELETE', body: JSON.stringify({ password: recNewPassword, confirm: 'DELETE' }) });
+  check('recovery: test account cleaned up', recDelete.status === 200, recDelete.status);
+  await recPage.close();
 } catch (e) {
   console.log('SUITE ABORT:', String(e).slice(0, 400));
 }

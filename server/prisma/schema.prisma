@@ -22,12 +22,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  accounts    Account[]
-  categories  Category[]
-  budgets     Budget[]
-  goals       SavingsGoal[]
-  recurring   RecurringRule[]
-  resetTokens PasswordResetToken[]
+  accounts      Account[]
+  categories    Category[]
+  budgets       Budget[]
+  goals         SavingsGoal[]
+  recurring     RecurringRule[]
+  resetTokens   PasswordResetToken[]
+  recoveryCodes RecoveryCode[]
 }
 
 model PasswordResetToken {
@@ -40,6 +41,17 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId, expiresAt])
+}
+
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, usedAt])
 }
 
 model Account {
@@ -94,16 +106,16 @@ model Transaction {
 }
 
 model TransactionLink {
-  id        String      @id @default(cuid())
-  fromId    String
-  from      Transaction @relation("linkFrom", fields: [fromId], references: [id], onDelete: Cascade)
-  toId      String
-  to        Transaction @relation("linkTo", fields: [toId], references: [id], onDelete: Cascade)
-  linkType   String    // transfer | refund | reversal
-  rate       Decimal?  @db.Decimal(18, 8)
+  id         String      @id @default(cuid())
+  fromId     String
+  from       Transaction @relation("linkFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId       String
+  to         Transaction @relation("linkTo", fields: [toId], references: [id], onDelete: Cascade)
+  linkType   String // transfer | refund | reversal
+  rate       Decimal?    @db.Decimal(18, 8)
   rateDate   String?
   rateSource String?
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime    @default(now())
 
   @@index([fromId])
   @@index([toId])

@@ -72,6 +72,8 @@ jobs:
       - name: Migrate database
         working-directory: server
         run: npx prisma migrate deploy
+      - name: Prove the demo seed is repeatable
+        run: npm run db:seed && npm run db:seed
       - run: npm run api:build
       - name: Start API and web
         run: |

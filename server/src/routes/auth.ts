@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/db.js';
-import { createResetToken, hashPassword, hashResetToken, verifyPassword, signToken } from '../lib/auth.js';
+import { createResetToken, createRecoveryCodes, hashPassword, hashRecoveryCode, hashResetToken, normalizeRecoveryCode, verifyPassword, signToken } from '../lib/auth.js';
 import { sendPasswordResetEmail } from '../lib/email.js';
 import { appBaseUrl, isProduction } from '../config.js';
 import { requireAuth, type AuthedRequest } from '../middleware/requireAuth.js';
@@ -40,6 +40,17 @@ const changePasswordLimiter = rateLimit({
   keyGenerator: (req) => `change-password:${(req as AuthedRequest).userId || req.ip}`,
   message: { error: 'Too many password changes. Try again later.' },
 });
+const recoveryGenerateLimiter = rateLimit({
+  windowMs: 60 * 60_000, max: 5, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => `recovery-generate:${(req as AuthedRequest).userId || req.ip}`,
+  message: { error: 'Too many recovery-code requests. Try again later.' },
+});
+const recoveryUseLimiter = rateLimit({
+  windowMs: 15 * 60_000, max: 10, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => `recovery-use:${req.ip}:${String((req.body as any)?.email || '').toLowerCase()}`,
+  message: { error: 'Too many recovery attempts. Try again in 15 minutes.' },
+});
+const INVALID_RECOVERY = 'Recovery code is invalid or has already been used.';
 
 router.post('/signup', signupLimiter, async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
@@ -141,12 +152,67 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
       where: { userId: user.id, usedAt: null },
       data: { usedAt: new Date() },
     });
+    await db.recoveryCode.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } });
     return true;
   });
   if (!updated) {
     res.status(400).json({ error: 'This reset link is invalid or has expired. Request a new one.' });
     return;
   }
+  res.json({ ok: true });
+});
+
+router.post('/recovery-codes', requireAuth, recoveryGenerateLimiter, async (req: AuthedRequest, res) => {
+  const parsed = z.object({ password: z.string().min(1).max(128) }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: 'Enter your current password.' }); return; }
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+    res.status(401).json({ error: 'Current password is incorrect.' });
+    return;
+  }
+  const codes = createRecoveryCodes();
+  await prisma.$transaction(async db => {
+    await db.recoveryCode.deleteMany({ where: { userId: user.id } });
+    await db.recoveryCode.createMany({ data: codes.map(code => ({ userId: user.id, codeHash: hashRecoveryCode(code) })) });
+  });
+  res.set('Cache-Control', 'no-store');
+  res.json({ codes });
+});
+
+router.post('/recover-with-code', recoveryUseLimiter, async (req, res) => {
+  const parsed = z.object({
+    email: z.string().trim().email().max(254),
+    code: z.string().trim().min(1).max(80),
+    password: passwordSchema,
+  }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: INVALID_RECOVERY }); return; }
+  const normalizedCode = normalizeRecoveryCode(parsed.data.code);
+  if (!/^[A-F0-9]{20}$/.test(normalizedCode)) { res.status(400).json({ error: INVALID_RECOVERY }); return; }
+  const email = parsed.data.email.toLowerCase();
+  const record = await prisma.recoveryCode.findUnique({
+    where: { codeHash: hashRecoveryCode(normalizedCode) },
+    include: { user: { select: { id: true, email: true } } },
+  });
+  if (!record || record.usedAt || record.user.email !== email) {
+    res.status(400).json({ error: INVALID_RECOVERY });
+    return;
+  }
+  const passwordHash = await hashPassword(parsed.data.password);
+  const updated = await prisma.$transaction(async db => {
+    const claimed = await db.recoveryCode.updateMany({
+      where: { id: record.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (claimed.count !== 1) return false;
+    await db.user.update({
+      where: { id: record.userId },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+    });
+    await db.recoveryCode.updateMany({ where: { userId: record.userId, usedAt: null }, data: { usedAt: new Date() } });
+    await db.passwordResetToken.updateMany({ where: { userId: record.userId, usedAt: null }, data: { usedAt: new Date() } });
+    return true;
+  });
+  if (!updated) { res.status(400).json({ error: INVALID_RECOVERY }); return; }
   res.json({ ok: true });
 });
 
@@ -201,6 +267,7 @@ router.post('/change-password', requireAuth, changePasswordLimiter, async (req: 
       data: { passwordHash: nextPasswordHash, tokenVersion: { increment: 1 } },
     });
     await db.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } });
+    await db.recoveryCode.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } });
     return next;
   });
   res.json({ ok: true, token: signToken(updated.id, updated.tokenVersion) });

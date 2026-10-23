@@ -92,13 +92,11 @@ async function main() {
   } else {
     console.log('Resetting demo data...');
     await prisma.transactionLink.deleteMany({ where: { from: { userId: user.id } } });
-    await prisma.transactionValuation.deleteMany({ where: { transaction: { userId: user.id } } });
+    await prisma.recoveryCode.deleteMany({ where: { userId: user.id } });
     await prisma.transaction.deleteMany({ where: { userId: user.id } });
     await prisma.budget.deleteMany({ where: { userId: user.id } });
     await prisma.savingsGoal.deleteMany({ where: { userId: user.id } });
     await prisma.recurringRule.deleteMany({ where: { userId: user.id } });
-    await prisma.aiInsight.deleteMany({ where: { userId: user.id } });
-    await prisma.providerQuote.deleteMany({ where: { userId: user.id } });
     await prisma.account.deleteMany({ where: { userId: user.id } });
     await prisma.category.deleteMany({ where: { userId: user.id } });
     await prisma.account.createMany({ data: [

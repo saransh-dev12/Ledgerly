@@ -18,7 +18,7 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 | **Public converter** | 165+ currencies, dated reference rates, inverse rate, stale/offline states with a dated cache, popular pairs, favourites, recents, copy & share. |
 | **Quote comparator** | Enter a provider quote + fixed/percentage/tax fees; exact `BigInt` minor-unit maths with per-currency rounding. The reference rate is **never** auto-filled into the provider field. |
 | **Dashboard** | 8 dedicated views: Overview, Transactions, Accounts, Budgets, Goals, Recurring, Insights, Currency pulse. Pulse includes a 30-day accessible rate chart with high/low, observation date, source, freshness and keyboard/pointer inspection. |
-| **Cloud mode** | JWT auth with expiring sessions, single-use email password recovery, multi-currency accounts, atomic transfers with FX capture, budgets with burn-down bars, goals with contributions plus edit/delete, recurring rules you can post in one tap, CSV export of the full ledger with currency-native precision, deterministic insights. |
+| **Cloud mode** | JWT auth with expiring sessions, zero-cost single-use recovery codes, optional email reset, multi-currency accounts, atomic transfers with FX capture, budgets with burn-down bars, goals with contributions plus edit/delete, recurring rules you can post in one tap, CSV export of the full ledger with currency-native precision, deterministic insights. |
 | **Offline-first** | The anonymous demo keeps working with no API — localStorage ledger, local analytics, and an explicit "local demo" state. |
 
 ## Architecture
@@ -27,7 +27,7 @@ Built as a portfolio-grade backend project — Express + TypeScript + PostgreSQL
 Browser (Vite, zero-framework UI)
   ├── index.html            landing + dashboard + converter (vanilla JS, ES modules)
   ├── public/roviel-api.js thin API client (additive; demo works without it)
-  ├── e2e/run.mjs           Playwright suite (112 checks, real browser)
+  ├── e2e/run.mjs           Playwright suite (121 checks, real browser)
   └── server/test/          Vitest money/maths unit tests (JPY, KWD, fees)
         │  HTTPS + Bearer JWT
         ▼
@@ -37,7 +37,7 @@ Express API (TypeScript)
   └── lib: money (BigInt minor units) · fx (Frankfurter + wide-coverage fallback, cached in Postgres)
         │  Prisma ORM
         ▼
-PostgreSQL — 10 tables, user-scoped by userId on every query
+PostgreSQL — 11 tables, user-scoped by userId on every query
 ```
 
 **Design rules that hold everywhere**
@@ -69,7 +69,7 @@ docker compose up -d db          # Postgres 16 on :5432
 cd server
 cp .env.example .env             # set DATABASE_URL + a long JWT_SECRET
 npm install
-npx prisma migrate dev --name init
+npx prisma migrate deploy
 npm run seed                     # demo@ledgerly.app / ledgerly123
 npm run dev
 
@@ -83,19 +83,21 @@ Open <http://localhost:5173>. Use the public converter without an account; sign 
 
 ```sh
 npm run test:unit     # minor-unit maths: JPY (1), KWD (1000), fees
-npm run test:e2e      # reseeds the demo, then runs 112 Playwright checks
+npm run test:e2e      # reseeds the demo, then runs 121 Playwright checks
 npm run smoke:prod    # web, API/DB health, FX freshness and auth boundary
 npm run lint          # oxlint
 ```
 
-The E2E suite drives a real Chromium instance and asserts exact values rather than labels. It also covers password-reset form states and non-enumerating forgot-password responses; the API integration suite exercises reset expiry, single-use tokens, session revocation and signed-in password changes. A ₹250 expense must raise spending by exactly ₹250, a ₹2,000 budget must report a ₹2,000 limit and 0% spend, a ₹1,000 goal contribution must move the saved amount by ₹1,000, a transfer of ₹100 must debit the source by ₹100, conversions and quotes are compared against the displayed rate, and chart months are checked against `/api/summary`. It also covers landing scroll-snap, auth, every dashboard view, budgets/goals/recurring creation and deletion, CSV export, mobile layout, and a fully-blocked-network offline pass. The suite reseeds the demo account first, so it is repeatable.
+The E2E suite drives a real Chromium instance and asserts exact values rather than labels. It also covers password-reset form states, recovery-code generation/reset, non-enumerating forgot-password responses, CSV formula neutralization, self-hosted visuals, and mobile/offline behavior; the API integration suite exercises reset expiry, single-use tokens, session revocation, recovery-code reuse and signed-in password changes. A ₹250 expense must raise spending by exactly ₹250, a ₹2,000 budget must report a ₹2,000 limit and 0% spend, a ₹1,000 goal contribution must move the saved amount by ₹1,000, a transfer of ₹100 must debit the source by ₹100, conversions and quotes are compared against the displayed rate, and chart months are checked against `/api/summary`. It also covers landing scroll-snap, auth, every dashboard view, budgets/goals/recurring creation and deletion, CSV export, mobile layout, and a fully-blocked-network offline pass. The suite reseeds the demo account first, so it is repeatable.
 
 ## API surface
 
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/auth/signup` · `/login` | Create account / sign in (bcrypt + JWT) |
-| `POST` | `/api/auth/forgot-password` · `/reset-password` | Single-use, expiring email reset flow |
+| `POST` | `/api/auth/forgot-password` · `/reset-password` | Optional email reset flow (single-use, expiring) |
+| `POST` | `/api/auth/recovery-codes` | Generate ten single-use recovery codes (authenticated) |
+| `POST` | `/api/auth/recover-with-code` | Reset a password with one saved recovery code |
 | `POST` | `/api/auth/change-password` | Change password and revoke other sessions |
 | `GET` | `/api/auth/me` | Current user |
 | `DELETE` | `/api/auth/account` | Delete account and all data |
@@ -163,7 +165,7 @@ DRILL_CONFIRM=RESTORE-DRILL ./scripts/restore-drill.sh
 dropdb roviel_restore_drill
 ```
 
-The script dumps the source, refuses a non-empty target, restores into it, compares every public table and migration count, and never drops the target itself. A local drill against all six migrations passed on 2026-10-23, and the same restore drill was run from the old Render database into Neon before the production cutover.
+The script dumps the source, refuses a non-empty target, restores into it, compares every public table and migration count, and never drops the target itself. A local drill against all seven migrations passed on 2026-10-23, and the production cutover was preceded by a restore drill from the old Render database into Neon.
 
 ### Uptime checks
 
@@ -173,6 +175,7 @@ The script dumps the source, refuses a non-empty target, restores into it, compa
 
 - Production startup refuses to boot with a missing/default `JWT_SECRET`, no `DATABASE_URL`, or a wildcard/empty `FRONTEND_URL`. Access tokens last 12 hours; logout and password changes increment `tokenVersion` so old sessions are revoked server-side.
 - Password-reset tokens are random 256-bit values stored only as SHA-256 hashes, expire after 30 minutes, are single-use, and are invalidated by a newer request. Forgot-password responses are intentionally identical for registered and unknown emails. Reset links are delivered by Resend in production; local development logs the link instead. Until `RESEND_API_KEY` and `EMAIL_FROM` are configured, production returns a clear 503 instead of pretending the email was sent.
+- Signed-in users can generate ten recovery codes in Accounts. Codes are 80-bit random values shown once, stored only as SHA-256 hashes, single-use, rate-limited on use, and invalidated by password changes, email resets or use. Losing both the password and every saved code is unrecoverable; the UI says so before generation.
 - New accounts start at **zero** — the app never invents an opening balance. Demo data is seeded explicitly and labelled as a demo.
 - Entries can only use the currency of their account. Missing FX quotes are reported as unavailable (`null`) rather than converted at `1`.
 - Account deletion requires the account password plus the exact word `DELETE`; an account with entries cannot be removed, and at least one account must remain.
@@ -204,7 +207,7 @@ Reference rates come from [Frankfurter](https://frankfurter.dev/) (central-bank 
 ## Known limitations
 
 - Render's free web service sleeps after 15 minutes idle, so the first cloud request can take around 30 seconds.
-- Password-recovery email is implemented, but production returns a clear 503 until a free Resend sender/domain is configured with `RESEND_API_KEY` and `EMAIL_FROM`. It never pretends a reset email was sent when delivery is unavailable.
+- Password-recovery email is implemented, but production returns a clear 503 until a free Resend sender/domain is configured with `RESEND_API_KEY` and `EMAIL_FROM`. Signed-in users can instead generate ten single-use recovery codes; it never pretends a reset email was sent when delivery is unavailable.
 - Vercel frontend auto-deploy still requires the account's GitHub login connection in Vercel; until then releases use `vercel deploy --prod`.
 - The old Render Postgres is retained temporarily for rollback, is no longer read by the API and will expire naturally. Neon's free tier has its own compute/storage limits.
 - Refresh-token rotation and optional TOTP are not part of V1 and remain tracked in issue #10.

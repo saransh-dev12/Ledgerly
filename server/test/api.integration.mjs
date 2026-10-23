@@ -47,6 +47,12 @@ async function run() {
   assert.equal(health.status, 200);
   assert.equal(health.body.database, 'up');
 
+  assert.equal((await call('/api/fx/rate?base=ZZZ&quote=EUR')).status, 400);
+  assert.equal((await call('/api/fx/rate?base=USD&quote=EUR&date=not-a-date')).status, 400);
+  assert.equal((await call('/api/fx/history?base=USD&quote=EUR&days=0')).status, 400);
+  assert.equal((await call('/api/fx/history?base=USD&quote=EUR&days=366')).status, 400);
+  assert.equal((await call('/api/fx/quote', { method: 'POST', body: { amountMajor: 10, refRate: 1, providerRate: 1, fromCur: 'ZZZ', toCur: 'EUR' } })).status, 400);
+
   // Signup starts at zero, not a fabricated opening balance.
   const a = await signup('a');
   const aAccounts = await call('/api/accounts', { token: a.token });
@@ -260,6 +266,36 @@ async function run() {
   const me = await call('/api/auth/me', { method: 'PATCH', token: a.token, body: { homeCurrency: 'usd' } });
   assert.equal(me.status, 200);
   assert.equal(me.body.homeCurrency, 'USD');
+
+  // Recovery codes provide a zero-cost account recovery path without email.
+  const f = await signup('f');
+  const fUser = await db.user.findUnique({ where: { email: f.user.email } });
+  const recoveryNewPassword = 'recovery-password-789';
+  assert.equal((await call('/api/auth/recovery-codes', { method: 'POST', token: f.token, body: { password: 'wrong' } })).status, 401);
+  const generatedCodes = await call('/api/auth/recovery-codes', { method: 'POST', token: f.token, body: { password } });
+  assert.equal(generatedCodes.status, 200);
+  assert.equal(generatedCodes.body.codes.length, 10);
+  assert.equal(new Set(generatedCodes.body.codes).size, 10);
+  assert.ok(generatedCodes.body.codes.every(code => /^ROV-(?:[A-F0-9]{4}-){4}[A-F0-9]{4}$/.test(code)));
+  const storedCodes = await db.recoveryCode.findMany({ where: { userId: fUser.id } });
+  assert.equal(storedCodes.length, 10);
+  assert.ok(storedCodes.every(code => code.codeHash.length === 64 && !generatedCodes.body.codes.includes(code.codeHash)));
+  assert.equal((await call('/api/auth/recover-with-code', { method: 'POST', body: { email: a.user.email, code: generatedCodes.body.codes[0], password: recoveryNewPassword } })).status, 400);
+  assert.equal((await call('/api/auth/recover-with-code', { method: 'POST', body: { email: f.user.email, code: 'ROV-0000-0000-0000-0000-0000', password: recoveryNewPassword } })).status, 400);
+  const recovered = await call('/api/auth/recover-with-code', { method: 'POST', body: { email: f.user.email, code: generatedCodes.body.codes[0].toLowerCase(), password: recoveryNewPassword } });
+  assert.equal(recovered.status, 200, JSON.stringify(recovered.body));
+  assert.equal((await call('/api/auth/me', { token: f.token })).status, 401);
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: f.user.email, password } })).status, 401);
+  const recoveryLogin = await call('/api/auth/login', { method: 'POST', body: { email: f.user.email, password: recoveryNewPassword } });
+  assert.equal(recoveryLogin.status, 200);
+  assert.equal((await call('/api/auth/recover-with-code', { method: 'POST', body: { email: f.user.email, code: generatedCodes.body.codes[0], password: 'another-recovery-123' } })).status, 400);
+  assert.equal((await call('/api/auth/recover-with-code', { method: 'POST', body: { email: f.user.email, code: generatedCodes.body.codes[1], password: 'another-recovery-123' } })).status, 400);
+  assert.equal(await db.recoveryCode.count({ where: { userId: fUser.id, usedAt: null } }), 0);
+  const changedByRecovery = await call('/api/auth/change-password', { method: 'POST', token: recoveryLogin.body.token, body: { currentPassword: recoveryNewPassword, newPassword: 'final-recovery-456' } });
+  assert.equal(changedByRecovery.status, 200);
+  assert.equal(await db.recoveryCode.count({ where: { userId: fUser.id, usedAt: null } }), 0);
+  f.password = 'final-recovery-456';
+  f.token = changedByRecovery.body.token;
 
   // Account deletion requires password + explicit confirmation.
   const wrongDelete = await call('/api/auth/account', { method: 'DELETE', token: a.token, body: { password: 'wrong', confirm: 'DELETE' } });

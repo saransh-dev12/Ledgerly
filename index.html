@@ -1188,6 +1188,10 @@
     .goal-row-actions { display: flex; align-items: center; gap: 3px; }
     .goal-row-actions .row-del { width: 20px; min-width: 20px; height: 20px; min-height: 20px; border-color: transparent; border-radius: 50%; opacity: .55; font-size: 11px; }
     .goal-row-actions .row-del:hover, .goal-row-actions .row-del:focus-visible { opacity: 1; }
+    .recovery-code-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin: 10px 0; padding: 0; list-style: none; }
+    .recovery-code-list li { padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--text); background: rgb(255 255 255 / 4%); font-family: var(--mono); font-size: 10px; letter-spacing: .5px; }
+    #copy-recovery-codes { margin-top: 2px; }
+    @media (max-width: 600px) { .recovery-code-list { grid-template-columns: 1fr; } }
     [data-theme="brutal"] .goal-row-actions .row-del { border: 0; background: transparent; }
     [data-theme="brutal"] .goal-row-actions .row-del:hover { background: var(--accent); }
     .rec-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 30px; align-items: center; gap: 12px; }
@@ -1635,6 +1639,7 @@
             <section class="dash-card dash-activity cloud-gate"><div class="dash-activity-top"><div><h2>Accounts live in the cloud</h2><p>Sign in to create wallets, hold multiple currencies, and transfer with live FX.</p></div></div><button class="dash-primary cloud-gate-signin" type="button">Sign in to unlock</button></section>
             <section class="cloud-grid duo cloud-only">
               <article class="dash-card"><h3>Preferences</h3><p>Choose the currency your dashboard reports in. Original entry amounts never change.</p><div class="mini-form"><select id="settings-home-currency" aria-label="Home currency"><option>INR</option><option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>AUD</option><option>CAD</option><option>CHF</option><option>SGD</option><option>AED</option><option>BHD</option><option>KWD</option></select><select id="settings-locale" aria-label="Number and date locale"><option value="en-IN">en-IN</option><option value="en-US">en-US</option><option value="en-GB">en-GB</option><option value="de-DE">de-DE</option><option value="ja-JP">ja-JP</option><option value="ar-AE">ar-AE</option></select><button type="button" id="save-settings">Save preferences</button></div><p class="hint">Changing the reporting currency revalues prior entries with current rates; recorded amounts stay exactly as entered.</p><div class="mini-form"><input id="change-password-current" type="password" placeholder="Current password" autocomplete="current-password" aria-label="Current password"><input id="change-password-new" type="password" placeholder="New password (min 8)" autocomplete="new-password" aria-label="New password"><button type="button" id="change-password">Change password</button></div><p class="hint">Changing your password signs out other devices.</p></article>
+              <article class="dash-card"><h3>Recovery codes</h3><p>Generate ten single-use codes for account recovery without email. They replace any previous codes and are shown only once.</p><div class="mini-form"><input id="recovery-generate-password" type="password" placeholder="Current password" autocomplete="current-password" aria-label="Current password for recovery codes"><button type="button" id="generate-recovery-codes">Generate codes</button></div><div id="recovery-codes-output" hidden><p class="hint">Save these codes somewhere safe. Each works once. If you lose your password and these codes, recovery is not possible.</p><ol class="recovery-code-list" id="recovery-code-list"></ol><button class="auth-ghost" type="button" id="copy-recovery-codes">Copy all codes</button></div><p class="hint">Changing your password or using a recovery code invalidates all remaining codes.</p></article>
               <article class="dash-card"><h3>Danger zone</h3><p>Delete your account and every account, entry, budget and goal in it. Export CSV first.</p><div class="mini-form"><input id="delete-account-password" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password"><input id="delete-account-confirm" placeholder="Type DELETE" aria-label="Type DELETE to confirm"><button type="button" id="delete-account" class="row-del" style="width:auto;padding:0 10px">Delete account</button></div><p class="hint">This cannot be undone. The demo account is shared and should not be deleted.</p></article>
             </section>
           </div>
@@ -1766,9 +1771,11 @@
       <input id="auth-email" type="email" placeholder="you@example.com" required autocomplete="email">
       <input id="auth-password" type="password" placeholder="Password (min 8)" required autocomplete="current-password">
       <input id="auth-password-confirm" type="password" placeholder="Confirm new password" autocomplete="new-password" hidden>
+      <input id="auth-recovery-code" type="text" placeholder="Recovery code (ROV-…)" autocomplete="off" spellcheck="false" hidden>
       <div class="auth-error" id="auth-error" role="status" aria-live="polite"></div>
       <div class="auth-row"><button type="submit" class="auth-primary" id="auth-submit">Sign in</button><button type="button" class="auth-ghost" id="auth-signup">Create account</button></div>
       <div class="auth-row"><button type="button" class="auth-ghost" id="auth-forgot">Forgot password?</button><button type="button" class="auth-ghost" id="auth-import">Import demo → cloud</button></div>
+      <div class="auth-row" id="auth-recovery-row" hidden><button type="button" class="auth-ghost" id="auth-use-recovery">Use a saved recovery code</button></div>
       <div class="auth-row"><button type="button" class="auth-ghost" id="auth-close">Close</button></div>
     </form>
   </div>
@@ -2335,6 +2342,10 @@
         const text = value === null || value === undefined ? '' : String(value);
         return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
       };
+      const textCell = value => {
+        const text = value === null || value === undefined ? '' : String(value);
+        return cell(/^[=+\-@\t\r]/.test(text) ? "'" + text : text);
+      };
       const currencyDigits = currency => Math.round(Math.log10(minorScale(currency)));
       const exactMajor = (minorValue, currency) => {
         const digits = currencyDigits(currency);
@@ -2355,20 +2366,20 @@
         else if (t.rateToHome !== null && t.rateToHome !== undefined && Number(t.rateToHome) > 0) homeMajor = toMajorUnits(minor, currency) * Number(t.rateToHome);
         const description = t.name || t.note || '';
         return [
-          t.id,
-          t.dateISO || t.date || (t.bookedAt ? String(t.bookedAt).slice(0, 10) : ''),
-          description,
-          t.category,
-          kind,
-          exactMajor(minor, currency),
-          currency,
-          minor.toString(),
-          homeCurrency,
-          homeMajor === null ? '' : homeMajor.toFixed(currencyDigits(homeCurrency)),
-          t.note || description,
+          cell(t.id),
+          cell(t.dateISO || t.date || (t.bookedAt ? String(t.bookedAt).slice(0, 10) : '')),
+          textCell(description),
+          textCell(t.category),
+          cell(kind),
+          cell(exactMajor(minor, currency)),
+          cell(currency),
+          cell(minor.toString()),
+          cell(homeCurrency),
+          cell(homeMajor === null ? '' : homeMajor.toFixed(currencyDigits(homeCurrency))),
+          textCell(t.note || description),
         ];
       }));
-      const blob = new Blob(['\ufeff' + rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const blob = new Blob(['\ufeff' + rows.map(r => r.join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
       const stamp = new Date().toISOString().slice(0, 10);
       a.href = URL.createObjectURL(blob); a.download = `roviel-transactions-${stamp}.csv`; a.click();
@@ -3518,6 +3529,9 @@
       const authEmail = document.getElementById('auth-email');
       const authPassword = document.getElementById('auth-password');
       const authPasswordConfirm = document.getElementById('auth-password-confirm');
+      const authRecoveryCode = document.getElementById('auth-recovery-code');
+      const authRecoveryRow = document.getElementById('auth-recovery-row');
+      const authUseRecoveryBtn = document.getElementById('auth-use-recovery');
       const authSubmit = document.getElementById('auth-submit');
       const authSignupBtn = document.getElementById('auth-signup');
       const authForgotBtn = document.getElementById('auth-forgot');
@@ -3570,6 +3584,12 @@
         const ws = document.getElementById('dash-workspace-label');
         if (ws) ws.textContent = (on ? 'Cloud workspace' : 'Local demo') + ' · ' + (document.querySelector('.dash-breadcrumb strong')?.textContent || 'Overview');
         if (accountSel) accountSel.hidden = !on || cloudAccounts.length < 2;
+        if (!on) {
+          const output = document.getElementById('recovery-codes-output');
+          const list = document.getElementById('recovery-code-list');
+          if (output) output.hidden = true;
+          if (list) list.replaceChildren();
+        }
         updateAmountLabel();
       }
       function setAuthMessage(message = '', success = false) {
@@ -3581,15 +3601,20 @@
         authMode = mode;
         const reset = mode === 'reset';
         const forgot = mode === 'forgot';
-        if (authTitle) authTitle.textContent = reset ? 'Choose a new password' : mode === 'signup' ? 'Create your Roviel account' : forgot ? 'Reset your password' : 'Sign in to Roviel';
+        const recover = mode === 'recover';
+        const newPassword = reset || recover;
+        if (authTitle) authTitle.textContent = reset ? 'Choose a new password' : recover ? 'Use a recovery code' : mode === 'signup' ? 'Create your Roviel account' : forgot ? 'Reset your password' : 'Sign in to Roviel';
         if (authSubtitle) authSubtitle.textContent = reset
           ? 'Use at least 8 characters. This link works once and expires after 30 minutes.'
+          : recover ? 'Enter your email, one saved recovery code and a new password. This does not need email delivery.'
           : forgot ? 'Enter your account email. If it is registered, we will send a single-use reset link.'
           : mode === 'signup' ? 'Cloud sync via Postgres. Demo still works offline.' : 'Cloud sync via Postgres. Demo still works offline.';
         if (authEmail) { authEmail.hidden = reset; authEmail.disabled = reset; authEmail.required = !reset; }
         if (authPassword) { authPassword.hidden = forgot; authPassword.value = ''; authPassword.autocomplete = mode === 'signin' ? 'current-password' : 'new-password'; }
-        if (authPasswordConfirm) { authPasswordConfirm.hidden = !reset; authPasswordConfirm.value = ''; }
-        if (authSubmit) { authSubmit.textContent = reset ? 'Update password' : forgot ? 'Send reset link' : mode === 'signup' ? 'Create account' : 'Sign in'; authSubmit.disabled = false; }
+        if (authPasswordConfirm) { authPasswordConfirm.hidden = !newPassword; authPasswordConfirm.value = ''; }
+        if (authRecoveryCode) { authRecoveryCode.hidden = !recover; authRecoveryCode.value = ''; }
+        if (authRecoveryRow) authRecoveryRow.hidden = !forgot;
+        if (authSubmit) { authSubmit.textContent = reset ? 'Update password' : recover ? 'Reset with code' : forgot ? 'Send reset link' : mode === 'signup' ? 'Create account' : 'Sign in'; authSubmit.disabled = false; }
         if (authSignupBtn) authSignupBtn.textContent = mode === 'signin' ? 'Create account' : 'Back to sign in';
         if (authForgotBtn) authForgotBtn.hidden = mode !== 'signin';
         if (authImportBtn) authImportBtn.hidden = mode !== 'signin';
@@ -3600,7 +3625,8 @@
         setAuthMode(mode);
         authModal.classList.add('open');
         authModal.setAttribute('aria-hidden', 'false');
-        setTimeout(() => (mode === 'reset' ? authPassword : authEmail)?.focus({ preventScroll: true }), 40);
+        const focusTarget = mode === 'recover' ? authRecoveryCode : mode === 'reset' ? authPassword : authEmail;
+        setTimeout(() => focusTarget?.focus({ preventScroll: true }), 40);
       }
       function closeAuth() {
         authModal.classList.remove('open');
@@ -3648,6 +3674,21 @@
           return;
         }
         if (!email || !/^\S+@\S+\.\S+$/.test(email)) { setAuthMessage('Enter a valid email address.'); return; }
+        if (authMode === 'recover') {
+          const code = authRecoveryCode.value.trim();
+          if (!code) { setAuthMessage('Enter one of your saved recovery codes.'); return; }
+          if (pw.length < 8) { setAuthMessage('Password must be at least 8 characters.'); return; }
+          if (pw !== authPasswordConfirm.value) { setAuthMessage('The passwords do not match.'); return; }
+          authSubmit.disabled = true;
+          try {
+            await api().recoverWithCode(email, code, pw);
+            setAuthMode('signin');
+            if (authEmail) authEmail.value = email;
+            setAuthMessage('Password updated. Sign in with your new password.', true);
+          } catch (err) { setAuthMessage(friendlyAuthError(err)); }
+          finally { authSubmit.disabled = false; }
+          return;
+        }
         if (authMode === 'forgot') {
           authSubmit.disabled = true;
           try {
@@ -3671,6 +3712,7 @@
         else openAuth('signin');
       });
       authForgotBtn?.addEventListener('click', () => openAuth('forgot'));
+      authUseRecoveryBtn?.addEventListener('click', () => openAuth('recover'));
       authImportBtn?.addEventListener('click', async () => {
         try { await api().importDemo(async () => cloudAccounts.length ? cloudAccounts : api().base ? await fetch(api().base + '/api/accounts', { headers: { Authorization: 'Bearer ' + localStorage.getItem('roviel.api.token') } }).then(r => r.json()) : []); await loadCloud(); showDashboardToast('Demo imported to cloud.'); }
         catch (err) { setAuthMessage(String(err.message || err)); }
@@ -4216,6 +4258,42 @@
           showDashboardToast('Password changed. Other devices were signed out.');
         } catch (error) { showDashboardToast(String(error.message || error)); }
         finally { btn.disabled = false; }
+      });
+      document.getElementById('generate-recovery-codes')?.addEventListener('click', async () => {
+        if (!window.RovielAPI || !window.RovielAPI.isCloud()) { showDashboardToast('Sign in to generate recovery codes.'); return; }
+        const input = document.getElementById('recovery-generate-password');
+        const password = input?.value || '';
+        if (!password) { showDashboardToast('Enter your current password.'); return; }
+        if (!confirm('Generate new recovery codes? Any existing codes will stop working.')) return;
+        const btn = document.getElementById('generate-recovery-codes');
+        btn.disabled = true;
+        try {
+          const result = await cloudPost('/api/auth/recovery-codes', { password });
+          const codes = Array.isArray(result?.codes) ? result.codes : [];
+          const list = document.getElementById('recovery-code-list');
+          list.replaceChildren();
+          codes.forEach(code => {
+            const item = document.createElement('li');
+            const value = document.createElement('code');
+            value.textContent = code;
+            item.append(value);
+            list.append(item);
+          });
+          document.getElementById('recovery-codes-output').hidden = false;
+          input.value = '';
+          showDashboardToast('Recovery codes generated. Save them now — they will not be shown again.');
+        } catch (error) { showDashboardToast(String(error.message || error)); }
+        finally { btn.disabled = false; }
+      });
+      document.getElementById('copy-recovery-codes')?.addEventListener('click', async () => {
+        const codes = [...document.querySelectorAll('#recovery-code-list code')].map(code => code.textContent);
+        if (!codes.length) return;
+        try {
+          await navigator.clipboard.writeText(codes.join('\n'));
+          showDashboardToast('Recovery codes copied.');
+        } catch {
+          showDashboardToast('Copy unavailable — select the codes and copy them manually.');
+        }
       });
       document.getElementById('delete-account')?.addEventListener('click', async () => {
         const password = document.getElementById('delete-account-password')?.value || '';
