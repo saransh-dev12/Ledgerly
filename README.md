@@ -98,11 +98,14 @@ The E2E suite drives a real Chromium instance and asserts exact values rather th
 | `DELETE` | `/api/auth/account` | Delete account and all data |
 | `GET/POST` | `/api/accounts` | Multi-currency accounts |
 | `GET/POST` | `/api/transactions` | Ledger entries (filter by account, kind, date) |
+| `PATCH/DELETE` | `/api/transactions/:id` | Correct or remove an entry (linked legs are protected) |
 | `POST` | `/api/transactions/transfer` | Atomic cross-account transfer with FX capture |
-| `DELETE` | `/api/transactions/:id` | Remove an entry (linked legs are protected) |
+| `PATCH/DELETE` | `/api/accounts/:id` | Rename or remove an empty account |
 | `GET/POST/DELETE` | `/api/budgets` · `/api/budgets/:id` | Monthly limits |
 | `GET/POST` | `/api/goals` · `/api/recurring` | Planning records |
 | `POST` | `/api/goals/:id/contribute` | Record a contribution |
+| `POST` | `/api/recurring/:id/post` | Post a rule into the ledger and advance its next run |
+| `PATCH` | `/api/auth/me` | Home currency, locale and display name |
 | `GET` | `/api/fx/rate` · `/history` · `/currencies` | Reference rates (cached, stale-aware) |
 | `POST` | `/api/fx/quote` | Server-side quote + fee breakdown |
 | `GET` | `/api/summary?months=N` | Server-side totals, accounts, categories, months, budgets, goals |
@@ -126,6 +129,34 @@ Live URLs: web `https://ledgerly-phi-seven.vercel.app`, API `https://ledgerly-ap
 `FRONTEND_URL` is also the CORS allow-list: requests from other origins are rejected. Local development needs no env at all — the web app defaults to `http://localhost:4000` on localhost and keeps working offline in demo mode.
 
 Operational notes: the Render web service sleeps after 15 minutes idle (cold start ~30s); the free Postgres instance expires on **2026-11-22** and must be migrated to Neon/Supabase or a paid plan before then (tracked in issues). Neither Render nor Vercel is wired to GitHub for auto-deploy in this setup, so a release is `git push`, `render deploys create srv-dbdidass728c73c30920`, then `vercel deploy --prod`, followed by the deployed smoke checks.
+
+## Backup and recovery
+
+The Render free plan does not include automated backups, and the demo database expires on **2026-11-22**. Before that date, migrate to Neon/Supabase or a paid Render plan (tracked in issue #8). Until then, take an off-platform dump whenever real data is entered:
+
+```sh
+# External access must be allowed for your IP first (Render dashboard or CLI).
+DATABASE_URL='postgresql://.../ledgerly?sslmode=require' ./scripts/backup-db.sh
+pg_restore --list backups/roviel-*.dump | head      # verify the archive
+```
+
+Restore into a fresh database, never over live data without a snapshot:
+
+```sh
+DATABASE_URL='postgresql://.../ledgerly?sslmode=require' RESTORE_CONFIRM=RESTORE ./scripts/restore-db.sh backups/roviel-YYYYMMDDTHHMMSSZ.dump
+npm run db:migrate    # only if the backup predates the current schema
+```
+
+`backups/` is gitignored. Keep dumps outside the repository and never commit credentials or dumps. For the bundled demo, `npm run db:seed` rebuilds the sample ledger; it is destructive to the `demo@ledgerly.app` user only.
+
+## Security and correctness notes
+
+- Production startup refuses to boot with a missing/default `JWT_SECRET`, no `DATABASE_URL`, or a wildcard/empty `FRONTEND_URL`. Access tokens last 12 hours; logout increments `tokenVersion` so the token is revoked server-side.
+- New accounts start at **zero** — the app never invents an opening balance. Demo data is seeded explicitly and labelled as a demo.
+- Entries can only use the currency of their account. Missing FX quotes are reported as unavailable (`null`) rather than converted at `1`.
+- Account deletion requires the account password plus the exact word `DELETE`; an account with entries cannot be removed, and at least one account must remain.
+- The client treats a `401` as an expired session, clears cloud state, and asks you to sign in instead of showing an empty or local ledger as if it were yours.
+- CSV exports include the original currency, kind, `amount_minor`, and the converted `home_amount` when a rate exists.
 
 ## Data sources & disclaimers
 
