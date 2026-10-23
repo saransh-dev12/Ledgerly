@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build web + API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run api:build
+
+  e2e:
+    name: Playwright (81 checks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ledgerly
+          POSTGRES_PASSWORD: ledgerly
+          POSTGRES_DB: ledgerly
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://ledgerly:ledgerly@localhost:5432/ledgerly
+      JWT_SECRET: ci-only-not-a-production-secret
+      FRONTEND_URL: http://localhost:5173
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - run: npx playwright install --with-deps chromium
+      - name: Migrate database
+        working-directory: server
+        run: npx prisma migrate deploy
+      - run: npm run api:build
+      - name: Start API and web
+        run: |
+          npm start --prefix server > /tmp/api.log 2>&1 &
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:4000/health >/dev/null && \
+            curl -sf http://localhost:5173 >/dev/null && exit 0
+            sleep 2
+          done
+          echo "Servers did not become ready"; tail -50 /tmp/api.log; tail -50 /tmp/web.log; exit 1
+      - name: Run the suite
+        run: npm run test:e2e
+      - name: Collect logs
+        if: failure()
+        run: cp /tmp/api.log /tmp/web.log e2e/ 2>/dev/null || true
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-${{ github.run_id }}
+          path: |
+            e2e/screenshots
+            e2e/*.log
+          retention-days: 7
+          if-no-files-found: ignore
