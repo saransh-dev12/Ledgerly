@@ -243,6 +243,11 @@ try {
   check('breakdown renders', (await page.locator('#category-breakdown').innerText()).includes('% of spending'));
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 8000 }).catch(() => null), page.click('#export-csv')]);
   check('export CSV downloads', !!download, download ? await download.suggestedFilename() : 'none');
+  if (download) {
+    const csv = fs.readFileSync(await download.path(), 'utf8').replace(/^\ufeff/, '');
+    const header = csv.split(/\r?\n/)[0];
+    check('CSV carries currency and minor units', /amount_minor/.test(header) && /currency/.test(header) && /home_amount/.test(header) && csv.includes(',INR,'), header);
+  }
 
   // ================= CLOUD MODE =================
   await login(page);

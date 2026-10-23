@@ -1574,6 +1574,10 @@
               <article class="dash-card"><h3>Move money</h3><p>Transfer between your first two accounts.</p><div class="mini-form"><input id="transfer-amount" type="number" min="1" placeholder="Amount"><button type="button" id="do-transfer">Transfer</button></div><p class="hint">FX is captured at transfer time and both legs are linked, so a transfer can never be deleted by accident.</p></article>
             </section>
             <section class="dash-card dash-activity cloud-gate"><div class="dash-activity-top"><div><h2>Accounts live in the cloud</h2><p>Sign in to create wallets, hold multiple currencies, and transfer with live FX.</p></div></div><button class="dash-primary cloud-gate-signin" type="button">Sign in to unlock</button></section>
+            <section class="cloud-grid duo cloud-only">
+              <article class="dash-card"><h3>Preferences</h3><p>Choose the currency your dashboard reports in. Original entry amounts never change.</p><div class="mini-form"><select id="settings-home-currency" aria-label="Home currency"><option>INR</option><option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>AUD</option><option>CAD</option><option>CHF</option><option>SGD</option><option>AED</option><option>BHD</option><option>KWD</option></select><select id="settings-locale" aria-label="Number and date locale"><option value="en-IN">en-IN</option><option value="en-US">en-US</option><option value="en-GB">en-GB</option><option value="de-DE">de-DE</option><option value="ja-JP">ja-JP</option><option value="ar-AE">ar-AE</option></select><button type="button" id="save-settings">Save preferences</button></div><p class="hint">Changing the reporting currency revalues prior entries with current rates; recorded amounts stay exactly as entered.</p></article>
+              <article class="dash-card"><h3>Danger zone</h3><p>Delete your account and every account, entry, budget and goal in it. Export CSV first.</p><div class="mini-form"><input id="delete-account-password" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password"><input id="delete-account-confirm" placeholder="Type DELETE" aria-label="Type DELETE to confirm"><button type="button" id="delete-account" class="row-del" style="width:auto;padding:0 10px">Delete account</button></div><p class="hint">This cannot be undone. The demo account is shared and should not be deleted.</p></article>
+            </section>
           </div>
           <div class="dash-view" id="view-budgets" role="tabpanel" hidden>
             <header class="view-head">
@@ -1636,7 +1640,7 @@
         <div class="tx-form-head"><div><h2 id="transaction-form-title">Add a transaction</h2><p>Keep your money picture up to date.</p></div><button type="button" class="tx-close" id="close-transaction" aria-label="Close form">×</button></div>
         <div class="tx-field"><label for="transaction-name">DESCRIPTION</label><input id="transaction-name" name="name" type="text" maxlength="70" placeholder="e.g. Weekly groceries" required></div>
         <div class="tx-form-row">
-          <div class="tx-field"><label for="transaction-amount">AMOUNT (INR)</label><input id="transaction-amount" name="amount" type="number" min="1" step="1" placeholder="0" required></div>
+          <div class="tx-field"><label for="transaction-amount">AMOUNT (INR)</label><input id="transaction-amount" name="amount" type="number" min="0.001" step="any" placeholder="0" required></div>
           <div class="tx-field"><label for="transaction-type">TYPE</label><select id="transaction-type" name="type"><option value="expense">Money out</option><option value="income">Money in</option></select></div>
         </div>
         <div class="tx-field" id="category-field"><label for="transaction-category">CATEGORY</label><select id="transaction-category" name="category"><option>Food &amp; dining</option><option>Housing</option><option>Transport</option><option>Shopping</option><option>Health</option><option>Other</option></select></div>
@@ -2161,7 +2165,9 @@
     function formatMoney(amount, currency) {
       const code = currency || 'INR';
       try {
-        return new Intl.NumberFormat(undefined, { style: 'currency', currency: code, maximumFractionDigits: minorScale(code) === 1 ? 0 : 0 }).format(amount);
+        const scale = minorScale(code);
+        const digits = scale === 1 ? 0 : scale === 1000 ? 3 : 2;
+        return new Intl.NumberFormat(dashState.locale || undefined, { style: 'currency', currency: code, maximumFractionDigits: digits }).format(amount);
       } catch {
         return code + ' ' + Math.round(amount).toLocaleString();
       }
@@ -2175,23 +2181,35 @@
     }
 
     const isTransferEntry = item => item.isTransfer === true || String(item.kind || '').startsWith('transfer');
+    function emptySummary() {
+      return {
+        homeCurrency: dashState.homeCurrency || 'INR',
+        totals: { balanceMajor: null, incomeMajor: null, expenseMajor: null, netMajor: null, savingsRate: null, transactionCount: 0, complete: false },
+        fx: { base: dashState.homeCurrency || 'INR', missing: [], missingForTotals: [], missingForBalances: [], stale: [] },
+        accounts: [], categories: [], months: [], budgets: [], goals: [],
+        unavailable: true,
+        disclaimer: 'Cloud data is unavailable right now. Nothing is being estimated.',
+      };
+    }
+
     function currentSummary() {
       const cloud = !!(window.LedgerlyAPI && window.LedgerlyAPI.isCloud());
-      return cloud && dashState.summary ? dashState.summary : localSummary();
+      return cloud ? (dashState.summary || emptySummary()) : localSummary();
     }
 
     function renderDashboard() {
-      const ledger = transactions.filter(item => !isTransferEntry(item));
-      const incomeItems = ledger.filter(item => item.type === 'income');
-      const expenseItems = ledger.filter(item => item.type !== 'income');
-      const income = incomeItems.reduce((sum, item) => sum + Math.abs(item.home ?? item.amount), 0);
-      const expenses = expenseItems.reduce((sum, item) => sum + Math.abs(item.home ?? item.amount), 0);
+      const summary = currentSummary();
+      const income = Number(summary.totals.incomeMajor) || 0;
+      const expenses = Number(summary.totals.expenseMajor) || 0;
       renderMetricCards(currentSummary());
       document.getElementById('activity-caption').textContent = transactions.length + (transactions.length === 1 ? ' recorded entry.' : ' recorded entries, newest first.');
 
       const heading = document.getElementById('insight-heading');
       const copy = document.getElementById('insight-copy');
-      if (income >= expenses) {
+      if (summary.unavailable) {
+        heading.textContent = 'Cloud data is unavailable.';
+        copy.textContent = 'We could not load your ledger, so no totals are being estimated. Retry in a moment.';
+      } else if (income >= expenses) {
         heading.textContent = 'You’re keeping more than you spend.';
         copy.textContent = 'Your recorded income is ahead of spending this month. Keep going at a pace that feels right.';
       } else {
@@ -2206,31 +2224,53 @@
       const box = document.getElementById('category-breakdown');
       const note = document.getElementById('smart-insight');
       if (!box) return;
+      const summary = currentSummary();
+      const cloud = !!(window.LedgerlyAPI && window.LedgerlyAPI.isCloud());
       const byCat = {};
-      transactions.forEach(t => { if (t.type !== 'income') byCat[t.category] = (byCat[t.category] || 0) + Math.abs(t.amount); });
+      if (cloud) {
+        (summary.categories || []).forEach(item => { byCat[item.category] = Number(item.amountMajor) || 0; });
+      } else {
+        transactions.forEach(t => { if (t.type !== 'income') byCat[t.category] = (byCat[t.category] || 0) + Math.abs(t.amount); });
+      }
       const total = Object.values(byCat).reduce((s, v) => s + v, 0) || 1;
       const top = Object.entries(byCat).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const displayCurrency = cloud ? summary.homeCurrency : 'INR';
       box.innerHTML = top.length ? top.map(([c, v]) => {
         const pct = Math.round(v / total * 100);
-        return `<div class="dash-row"><div class="dash-transaction"><span class="dash-transaction-icon">•</span><div><div class="dash-transaction-name">${escapeHtml(c)}</div><div class="dash-transaction-sub">${pct}% of spending</div></div></div><span class="dash-category">${formatMoney(v)}</span><span class="dash-date">${pct}%</span><strong class="dash-amount"><span class="bar${pct > 50 ? ' over' : ''}" style="min-width:70px"><i style="width:${pct}%"></i></span></strong></div>`;
+        return `<div class="dash-row"><div class="dash-transaction"><span class="dash-transaction-icon">•</span><div><div class="dash-transaction-name">${escapeHtml(c)}</div><div class="dash-transaction-sub">${pct}% of spending</div></div></div><span class="dash-category">${formatMoney(v, displayCurrency)}</span><span class="dash-date">${pct}%</span><strong class="dash-amount"><span class="bar${pct > 50 ? ' over' : ''}" style="min-width:70px"><i style="width:${pct}%"></i></span></strong></div>`;
       }).join('') : '<p class="dash-empty">Add spending to see your breakdown.</p>';
       if (note) {
         const rate = expenses > 0 ? Math.round(income / expenses * 100) / 100 : 0;
         const topCat = top[0] ? top[0][0] : '—';
-        note.textContent = transactions.length
-          ? `Coverage ${rate}x · top outflow ${topCat} · ${income >= expenses ? 'on track this month.' : 'spending ahead — review activity.'} Works offline; sign in for budgets, goals and cross-device sync.`
-          : 'Your breakdown will appear here.';
+        const missing = (summary.fx && summary.fx.missing) || [];
+        note.textContent = missing.length
+          ? `FX unavailable for ${missing.join(', ')} — category totals exclude those entries.`
+          : transactions.length
+            ? `Coverage ${rate}x · top outflow ${topCat} · ${income >= expenses ? 'on track this month.' : 'spending ahead — review activity.'} Works offline; sign in for budgets, goals and cross-device sync.`
+            : 'Your breakdown will appear here.';
       }
       document.getElementById('export-csv').onclick = exportCSV;
     }
 
     function exportCSV() {
-      const rows = [['id', 'name', 'category', 'date', 'amount', 'type']].concat(transactions.map(t => [t.id, '"' + String(t.name).replace(/"/g, '""') + '"', t.category, t.dateISO || t.date, t.amount, t.type]));
-      const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' });
+      const cell = value => {
+        const text = value === null || value === undefined ? '' : String(value);
+        return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+      };
+      const heading = ['id', 'date', 'description', 'category', 'kind', 'amount_major', 'currency', 'amount_minor', 'home_currency', 'home_amount', 'note'];
+      const rows = [heading].concat(transactions.map(t => {
+        const currency = t.currency || 'INR';
+        const minor = t.amountMinor !== undefined ? BigInt(t.amountMinor) : BigInt(Math.round(Number(t.amount || 0) * minorScale(currency)));
+        const kind = t.kind || (t.type === 'income' ? 'income' : 'expense');
+        const home = t.home === null || t.home === undefined ? '' : Number(t.home).toFixed(2);
+        return [t.id, t.dateISO || t.date, t.name, t.category, kind, toMajorUnits(minor, currency).toFixed(minorScale(currency) === 1 ? 0 : 2), currency, minor.toString(), dashState.homeCurrency, home, t.name];
+      }));
+      const blob = new Blob(['\ufeff' + rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = 'ledgerly-transactions.csv'; a.click();
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = URL.createObjectURL(blob); a.download = `ledgerly-transactions-${stamp}.csv`; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      showDashboardToast('Exported CSV.');
+      showDashboardToast('Exported CSV with original currencies and minor units.');
     }
 
     async function deleteTransactionItem(id) {
@@ -2296,7 +2336,7 @@
         date.textContent = transactionDateLabel(item);
         const amount = document.createElement('strong');
         amount.className = 'dash-amount' + (item.type === 'income' ? ' is-income' : '');
-        amount.textContent = (item.type === 'income' ? '+' : '−') + formatMoney(Math.abs(item.amount));
+        amount.textContent = (item.type === 'income' ? '+' : '−') + formatMoney(Math.abs(item.amount), item.currency || dashState.homeCurrency);
         const del = document.createElement('button');
         del.className = 'row-del'; del.textContent = '×'; del.title = 'Remove';
         del.setAttribute('aria-label', 'Remove ' + item.name);
@@ -2306,6 +2346,13 @@
           del.addEventListener('click', () => deleteTransactionItem(item.id));
         }
         row.append(description, category, date, amount, del);
+        if (!isTransferEntry(item)) {
+          row.tabIndex = 0;
+          row.title = 'Edit transaction';
+          row.setAttribute('aria-label', `Edit ${item.name}`);
+          row.addEventListener('click', event => { if (!event.target.closest('button')) openTransactionModal(item); });
+          row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openTransactionModal(item); } });
+        }
         list.appendChild(row);
       });
     }
@@ -2316,7 +2363,7 @@
       document.body.classList.add('dashboard-open');
       view.classList.add('open');
       view.setAttribute('aria-hidden', 'false');
-      refreshSummary();
+      refreshSummary().catch(() => {});
       renderDashboard();
       if (addHistory && window.location.hash !== '#dashboard') history.pushState({ dashboard: true }, '', '#dashboard');
       window.scrollTo(0, 0);
@@ -2334,6 +2381,8 @@
       window.scrollTo(0, storyScrollY);
       document.querySelector('.contact-btn').focus({ preventScroll: true });
     }
+
+    function notifySessionExpired() { window.dispatchEvent(new Event('ledgerly:session-expired')); }
 
     function showDashboardToast(message) {
       const toast = document.getElementById('dashboard-toast');
@@ -2375,7 +2424,32 @@
     }
     window.LedgerlyShowView = showView;
 
-    function openTransactionModal() {
+    let editingTransactionId = null;
+    function openTransactionModal(item) {
+      const editing = item && item.id && item.name && !item.isTransfer ? item : null;
+      editingTransactionId = editing ? editing.id : null;
+      const form = document.getElementById('transaction-form');
+      const title = document.getElementById('transaction-form-title');
+      if (editing) {
+        title.textContent = 'Edit transaction';
+        document.getElementById('transaction-name').value = editing.name || '';
+        document.getElementById('transaction-amount').value = Math.abs(Number(editing.amount));
+        const type = document.getElementById('transaction-type');
+        type.value = editing.type === 'income' ? 'income' : 'expense';
+        const category = document.getElementById('transaction-category');
+        if (![...category.options].some(option => option.value === editing.category)) {
+          category.add(new Option(editing.category, editing.category));
+        }
+        category.value = editing.category || 'Other';
+        document.getElementById('category-field').style.display = type.value === 'income' ? 'none' : 'grid';
+        const label = document.querySelector('label[for="transaction-amount"]');
+        if (label) label.textContent = 'AMOUNT (' + (editing.currency || 'INR') + ')';
+      } else {
+        title.textContent = 'Add a transaction';
+        form.reset();
+        document.getElementById('category-field').style.display = 'grid';
+        window.LedgerlyCloud?.updateAmountLabel?.();
+      }
       const modal = document.getElementById('transaction-modal');
       modal.classList.add('open');
       modal.setAttribute('aria-hidden', 'false');
@@ -2387,6 +2461,11 @@
       const modal = document.getElementById('transaction-modal');
       modal.classList.remove('open');
       modal.setAttribute('aria-hidden', 'true');
+      editingTransactionId = null;
+      document.getElementById('transaction-form').reset();
+      document.getElementById('category-field').style.display = 'grid';
+      document.getElementById('transaction-form-title').textContent = 'Add a transaction';
+      window.LedgerlyCloud?.updateAmountLabel?.();
     }
 
     function decimalParts(value) {
@@ -2435,7 +2514,7 @@
     }
     function formatCurrency(amount, currency) {
       try {
-        return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: minorScale(currency) === 1 ? 0 : 2 }).format(amount);
+        return new Intl.NumberFormat(dashState.locale || undefined, { style: 'currency', currency, maximumFractionDigits: minorScale(currency) === 1 ? 0 : minorScale(currency) === 1000 ? 3 : 2 }).format(amount);
       } catch {
         return currency + ' ' + Number(amount).toLocaleString();
       }
@@ -3034,8 +3113,8 @@
         closeDashboard(true);
       }));
       document.querySelectorAll('[data-view]').forEach(btn => btn.addEventListener('click', () => window.LedgerlyShowView(btn.dataset.view)));
-      document.getElementById('open-transaction').addEventListener('click', openTransactionModal);
-      document.getElementById('open-transaction-2')?.addEventListener('click', openTransactionModal);
+      document.getElementById('open-transaction').addEventListener('click', () => openTransactionModal());
+      document.getElementById('open-transaction-2')?.addEventListener('click', () => openTransactionModal());
       document.getElementById('open-pulse-cta')?.addEventListener('click', () => showView('pulse'));
       document.getElementById('open-converter-cta')?.addEventListener('click', () => {
         const dialog = document.getElementById('currency-tools-dialog');
@@ -3061,6 +3140,27 @@
         if (!Number.isFinite(amount) || amount <= 0) { errorBox.textContent = 'Enter an amount greater than zero.'; document.getElementById('transaction-amount').focus(); return; }
         const type = String(data.get('type'));
         const category = type === 'income' ? 'Income' : String(data.get('category') || 'Other');
+
+        if (editingTransactionId) {
+          if (window.LedgerlyCloud && typeof window.LedgerlyCloud.updateTransaction === 'function') {
+            const updated = await window.LedgerlyCloud.updateTransaction(editingTransactionId, { amountMajor: amount, note: name, category, kind: type });
+            if (updated) { closeTransactionModal(); return; }
+          }
+          const index = transactions.findIndex(item => String(item.id) === String(editingTransactionId));
+          if (index >= 0) {
+            const existing = transactions[index];
+            transactions[index] = {
+              ...existing, name, category, type,
+              amount: type === 'income' ? amount : -amount,
+              home: existing.currency === dashState.homeCurrency ? (type === 'income' ? amount : -amount) : existing.home,
+            };
+            try { localStorage.setItem('ledgerly.transactions.v1', JSON.stringify(transactions)); } catch {}
+          }
+          closeTransactionModal();
+          renderDashboard();
+          showDashboardToast('Transaction updated.');
+          return;
+        }
 
         // Cloud first (authoritative), local ledger as the offline fallback.
         if (window.LedgerlyCloud && typeof window.LedgerlyCloud.saveTransaction === 'function') {
@@ -3287,6 +3387,30 @@
       const authError = document.getElementById('auth-error');
       let cloudAccounts = [];
       let cloudMode = false;
+      let expiring = false;
+      function expireSession() {
+        if (expiring) return;
+        expiring = true;
+        try { api()?.logout(); } catch {}
+        cloudAccounts = []; dashState.summary = null;
+        try { transactions = JSON.parse(localStorage.getItem('ledgerly.transactions.v1') || 'null') || transactions; } catch {}
+        refreshStatus(); updateAmountLabel(); renderDashboard();
+        showDashboardToast('Session expired. Sign in again.');
+        if (authError) authError.textContent = 'Your session expired. Sign in to continue syncing.';
+        openAuth();
+        setTimeout(() => { expiring = false; }, 1500);
+      }
+      async function cloudFetch(path, opts = {}) {
+        const token = localStorage.getItem('ledgerly.api.token');
+        const res = await fetch(api().base + path, {
+          ...opts,
+          headers: { ...(opts.body ? { 'Content-Type': 'application/json' } : {}), Authorization: 'Bearer ' + token, ...(opts.headers || {}) },
+        });
+        if (res.status === 401) { expireSession(); throw new Error('Session expired. Sign in again.'); }
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Request failed');
+        return res.status === 204 ? null : res.json();
+      }
+      window.addEventListener('ledgerly:session-expired', expireSession);
       function refreshStatus() {
         const on = !!(api() && api().isCloud());
         cloudMode = on;
@@ -3314,13 +3438,13 @@
       function closeAuth() { authModal.classList.remove('open'); authModal.setAttribute('aria-hidden', 'true'); if (authError) authError.textContent = ''; }
       document.getElementById('open-auth-modal')?.addEventListener('click', openAuth);
       document.getElementById('auth-button')?.addEventListener('click', () => {
-        if (api() && api().isCloud()) { api().logout(); cloudAccounts = []; try { transactions = JSON.parse(localStorage.getItem('ledgerly.transactions.v1') || 'null') || transactions; } catch {} refreshStatus(); updateAmountLabel(); renderDashboard(); showDashboardToast('Signed out. Local demo active.'); }
+        if (api() && api().isCloud()) { api().logout(); cloudAccounts = []; dashState.summary = null; try { transactions = JSON.parse(localStorage.getItem('ledgerly.transactions.v1') || 'null') || transactions; } catch {} refreshStatus(); updateAmountLabel(); renderDashboard(); showDashboardToast('Signed out. Local demo active.'); }
         else openAuth();
       });
       document.getElementById('auth-close')?.addEventListener('click', closeAuth);
       authModal?.addEventListener('click', e => { if (e.target.id === 'auth-modal') closeAuth(); });
       async function afterAuth(r) {
-        closeAuth(); refreshStatus(); await loadCloud(); showDashboardToast('Signed in. Cloud sync on.');
+        closeAuth(); dashState.summary = null; dashState.homeCurrency = 'INR'; dashState.locale = undefined; refreshStatus(); await loadCloud(); showDashboardToast('Signed in. Cloud sync on.');
       }
       function friendlyAuthError(err) {
         const m = String(err && err.message || err);
@@ -3359,13 +3483,12 @@
         if (!api() || !api().isCloud()) { refreshStatus(); return; }
         try {
           const base = api().base;
-          const h = { Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') };
           const [accts, txs, budgets, goals, rec] = await Promise.all([
-            fetch(base + '/api/accounts', { headers: h }).then(r => r.json()),
-            fetch(base + '/api/transactions', { headers: h }).then(r => r.json()),
-            fetch(base + '/api/budgets', { headers: h }).then(r => r.json()).catch(() => []),
-            fetch(base + '/api/goals', { headers: h }).then(r => r.json()).catch(() => []),
-            fetch(base + '/api/recurring', { headers: h }).then(r => r.json()).catch(() => []),
+            cloudFetch('/api/accounts'),
+            cloudFetch('/api/transactions'),
+            cloudFetch('/api/budgets').catch(() => []),
+            cloudFetch('/api/goals').catch(() => []),
+            cloudFetch('/api/recurring').catch(() => []),
           ]);
           cloudAccounts = Array.isArray(accts) ? accts : [];
           if (accountSel) {
@@ -3374,24 +3497,41 @@
             if (wrapper && wrapper.refresh) wrapper.refresh();
           }
           const al = document.getElementById('account-list');
-          if (al) al.innerHTML = cloudAccounts.length ? cloudAccounts.map(a => `<li><strong>${escapeHtml(a.name)}</strong> — ${escapeHtml(formatMajor(a.openingMinor, a.currency))} <span class="muted-cur">${escapeHtml(a.currency)}</span></li>`).join('') : '<li>No accounts yet.</li>';
+          if (al) al.innerHTML = cloudAccounts.length ? cloudAccounts.map(a => `<li style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div><strong>${escapeHtml(a.name)}</strong> — ${escapeHtml(formatMajor(a.openingMinor, a.currency))} <span class="muted-cur">${escapeHtml(a.currency)}</span></div><div style="display:flex;gap:5px"><button class="row-del" type="button" data-account-rename="${escapeHtml(a.id)}" data-name="${escapeHtml(a.name)}" title="Rename account" aria-label="Rename ${escapeHtml(a.name)}">✎</button><button class="row-del" type="button" data-account-del="${escapeHtml(a.id)}" data-name="${escapeHtml(a.name)}" title="Delete account" aria-label="Delete ${escapeHtml(a.name)}">×</button></div></li>`).join('') : '<li>No accounts yet.</li>';
+          al?.querySelectorAll('[data-account-rename]').forEach(btn => btn.addEventListener('click', async () => {
+            const name = prompt('Account name', btn.dataset.name);
+            if (!name || !name.trim() || name.trim() === btn.dataset.name) return;
+            btn.disabled = true;
+            try { await cloudPatch('/api/accounts/' + btn.dataset.accountRename, { name: name.trim() }); await loadCloud(); showDashboardToast('Account renamed.'); }
+            catch (error) { showDashboardToast(String(error.message)); btn.disabled = false; }
+          }));
+          al?.querySelectorAll('[data-account-del]').forEach(btn => btn.addEventListener('click', async () => {
+            if (!confirm(`Delete ${btn.dataset.name}? Entries must be removed first.`)) return;
+            btn.disabled = true;
+            try { await cloudDelete('/api/accounts/' + btn.dataset.accountDel); await loadCloud(); showDashboardToast('Account deleted.'); }
+            catch (error) { showDashboardToast(String(error.message)); btn.disabled = false; }
+          }));
+          const homeSelect = document.getElementById('settings-home-currency');
+          if (homeSelect && dashState.homeCurrency) homeSelect.value = dashState.homeCurrency;
+          const localeSelect = document.getElementById('settings-locale');
+          if (localeSelect && dashState.locale) localeSelect.value = dashState.locale;
           if (Array.isArray(txs)) {
             transactions = txs.map(t => {
               const currency = t.currency || 'INR';
               const major = toMajorUnits(t.amountMinor, currency);
-              const rate = Number(t.rateToHome) > 0 ? Number(t.rateToHome) : 1;
+              const rate = Number(t.rateToHome) > 0 ? Number(t.rateToHome) : null;
               return {
                 id: t.id, name: t.note || t.category, category: t.category, kind: t.kind, currency,
                 date: new Date(t.bookedAt).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' }),
                 dateISO: String(t.bookedAt).slice(0, 10),
-                amount: major, home: major * rate,
+                amountMinor: t.amountMinor, amount: major, home: rate === null ? null : major * rate,
                 type: t.kind === 'income' || t.kind === 'transfer_in' ? 'income' : 'expense',
                 isTransfer: String(t.kind || '').startsWith('transfer'),
               };
             });
           }
           try {
-            const ins = await fetch(base + '/api/insights', { headers: h }).then(r => r.json()).catch(() => null);
+            const ins = await cloudFetch('/api/insights').catch(() => null);
             const il = document.getElementById('insight-list');
             if (il && ins && ins.insights) {
               il.className = 'insight-cards';
@@ -3411,7 +3551,11 @@
           // Budgets and goals come from /api/summary so month scoping and FX are authoritative.
           const summaryBudgets = summary.budgets || [];
           const bl = document.getElementById('budget-list');
-          if (bl) bl.innerHTML = summaryBudgets.length ? summaryBudgets.map(b => `<li class="budget-row"><div class="budget-row-top"><strong>${escapeHtml(b.category)}</strong><span class="${b.over ? 'over-text' : ''}">${escapeHtml(formatMoney(b.spentMajor, b.currency))} <span class="muted-cur">of ${escapeHtml(formatMoney(b.limitMajor, b.currency))}</span></span></div><span class="bar${b.over ? ' over' : ''}"><i style="width:${Math.min(100, b.pct)}%"></i></span><div class="budget-row-foot"><span class="budget-meta">${b.pct}% used${b.over ? ' · over limit' : ''}${b.scopedMonth ? ' · ' + new Date(Number(b.scopedMonth.slice(0, 4)), Number(b.scopedMonth.slice(5, 7)) - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : ''}</span><button class="row-del" type="button" data-budget-del="${escapeHtml(b.id)}" title="Remove budget" aria-label="Remove ${escapeHtml(b.category)} budget">×</button></div></li>`).join('') : '<li>No budgets yet.</li>';
+          if (bl) bl.innerHTML = summaryBudgets.length ? summaryBudgets.map(b => {
+            const spentLabel = b.spentMajor === null || b.spentMajor === undefined ? 'FX unavailable' : escapeHtml(formatMoney(b.spentMajor, b.currency));
+            const pctLabel = b.pct === null || b.pct === undefined ? 'FX unavailable' : `${b.pct}% used${b.over ? ' · over limit' : ''}`;
+            return `<li class="budget-row"><div class="budget-row-top"><strong>${escapeHtml(b.category)}</strong><span class="${b.over ? 'over-text' : ''}">${spentLabel} <span class="muted-cur">of ${escapeHtml(formatMoney(b.limitMajor, b.currency))}</span></span></div><span class="bar${b.over ? ' over' : ''}"><i style="width:${Math.min(100, Number(b.pct) || 0)}%"></i></span><div class="budget-row-foot"><span class="budget-meta">${pctLabel}${b.scopedMonth ? ' · ' + new Date(Number(b.scopedMonth.slice(0, 4)), Number(b.scopedMonth.slice(5, 7)) - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : ''}</span><button class="row-del" type="button" data-budget-del="${escapeHtml(b.id)}" title="Remove budget" aria-label="Remove ${escapeHtml(b.category)} budget">×</button></div></li>`;
+          }).join('') : '<li>No budgets yet.</li>';
           bl?.querySelectorAll('[data-budget-del]').forEach(btn => btn.addEventListener('click', async () => {
             btn.disabled = true;
             try { await cloudDelete('/api/budgets/' + btn.dataset.budgetDel); await loadCloud(); showDashboardToast('Budget removed.'); }
@@ -3435,12 +3579,14 @@
           const rl = document.getElementById('recurring-list');
           if (rl) rl.innerHTML = rec.length ? rec.map(r => `<li class="rec-row"><div><strong>${escapeHtml(r.title)}</strong><span class="rec-meta">${escapeHtml(r.frequency)} · next ${escapeHtml(new Date(r.nextRun).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }))}</span></div><span class="rec-amount">${escapeHtml(formatMajor(r.amountMinor, r.currency))} <span class="muted-cur">${escapeHtml(r.currency)}</span></span><button class="row-del" data-rec="${escapeHtml(r.id)}" title="Post now" aria-label="Post ${escapeHtml(r.title)} now">↗</button></li>`).join('') : '<li>No recurring yet.</li>';
           rl?.querySelectorAll('[data-rec]').forEach(btn => btn.addEventListener('click', async () => {
-            const rule = rec.find(x => x.id === btn.dataset.rec);
-            if (!rule || !cloudAccounts[0]) return;
-            await fetch(base + '/api/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json', ...h }, body: JSON.stringify({ accountId: cloudAccounts[0].id, kind: rule.kind, amountMajor: toMajorUnits(rule.amountMinor, rule.currency), note: rule.title, category: rule.category }) });
-            loadCloud();
+            btn.disabled = true;
+            try {
+              const result = await cloudPost('/api/recurring/' + btn.dataset.rec + '/post', {});
+              await loadCloud();
+              showDashboardToast(result.fxWarning || 'Rule posted.');
+            } catch (error) { showDashboardToast(String(error.message)); btn.disabled = false; }
           }));
-        } catch (err) { console.info('Cloud load failed, staying on local demo.', err); }
+        } catch (err) { console.info('Cloud load failed; keeping the last loaded data.', err); }
         refreshStatus();
       }
       const PULSE_PAIRS = [['USD','EUR'],['EUR','USD'],['USD','INR'],['INR','USD'],['GBP','USD'],['USD','JPY'],['AUD','USD'],['CHF','EUR'],['SGD','USD'],['EUR','INR'],['GBP','INR'],['AED','INR']];
@@ -3461,14 +3607,18 @@
         const [b, q] = pair.split('/');
         try {
           const [rate, hist] = await Promise.all([api().fxRate(b, q), api().fxHistory(b, q, 30).catch(() => null)]);
-          const pts = hist && hist.rates ? Object.entries(hist.rates).slice(-8) : [];
+          const pts = hist && hist.rates ? Object.entries(hist.rates).sort(([a], [c]) => a.localeCompare(c)) : [];
           const inverse = Number(rate.rate) > 0 ? 1 / Number(rate.rate) : 0;
           const fmt = (n, c) => { try { return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(n); } catch { return String(n); } };
+          const first = pts.length ? Number(pts[0][1]) : NaN;
+          const last = pts.length ? Number(pts[pts.length - 1][1]) : NaN;
+          const movePct = first > 0 && Number.isFinite(last) ? ((last - first) / first) * 100 : null;
+          const moveLabel = movePct === null ? 'History unavailable' : `${movePct >= 0 ? '+' : ''}${movePct.toFixed(2)}% over ${pts.length} points`;
           if (grid) grid.innerHTML = `
             <div class="pulse-tile"><span class="pulse-tile-label">1 ${b} buys</span><strong>${fmt(rate.rate, q)} ${q}</strong><small>${rate.stale ? 'Stale observation' : 'Fresh reference rate'}</small></div>
             <div class="pulse-tile"><span class="pulse-tile-label">1 ${q} buys</span><strong>${fmt(inverse, b)} ${b}</strong><small>Inverse of the same quote</small></div>
-            <div class="pulse-tile"><span class="pulse-tile-label">Observed</span><strong>${rate.date || '—'}</strong><small>${rate.source === 'wide-coverage' ? 'Wide-coverage feed' : 'Frankfurter (ECB blend)'}</small></div>
-            <div class="pulse-tile"><span class="pulse-tile-label">30-day points</span><strong>${pts.length}</strong><small>${pts.length ? 'Chart available in the converter' : 'History unavailable'}</small></div>`;
+            <div class="pulse-tile"><span class="pulse-tile-label">30-day movement</span><strong class="${movePct === null ? '' : movePct >= 0 ? 'is-up' : 'is-down'}">${movePct === null ? '—' : `${movePct >= 0 ? '+' : ''}${movePct.toFixed(2)}%`}</strong><small>${moveLabel}</small></div>
+            <div class="pulse-tile"><span class="pulse-tile-label">Observed</span><strong>${rate.date || '—'}</strong><small>${rate.source === 'wide-coverage' ? 'Wide-coverage feed' : 'Frankfurter (ECB blend)'}</small></div>`;
           list.innerHTML = `<div class="dash-row head"><span>PAIR</span><span>RATE</span><span>OBSERVED</span><span style="text-align:right">FRESHNESS</span></div>
             <div class="dash-row"><div class="dash-transaction"><span class="dash-transaction-icon">⇄</span><div><div class="dash-transaction-name">${b} / ${q}</div><div class="dash-transaction-sub">${pts.length ? pts.length + ' points · 30d' : 'Reference rate'}</div></div></div>
             <span class="dash-category">${fmt(rate.rate, q)}</span><span class="dash-date">${rate.date}</span><strong class="dash-amount ${rate.stale ? 'is-stale' : ''}">${rate.stale ? 'STALE' : 'FRESH'}</strong></div>`;
@@ -3477,15 +3627,14 @@
       }
       document.getElementById('pulse-pair')?.addEventListener('change', loadPulse);
       accountSel?.addEventListener('change', updateAmountLabel);
-      async function cloudDelete(path) {
-        const r = await fetch(api().base + path, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') } });
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Delete failed');
-        return r.status === 204 ? null : r.json();
+      async function cloudDelete(path, body) {
+        return cloudFetch(path, { method: 'DELETE', ...(body ? { body: JSON.stringify(body) } : {}) });
       }
       async function cloudPost(path, body) {
-        const r = await fetch(api().base + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') }, body: JSON.stringify(body) });
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Save failed');
-        return r.json();
+        return cloudFetch(path, { method: 'POST', body: JSON.stringify(body) });
+      }
+      async function cloudPatch(path, body) {
+        return cloudFetch(path, { method: 'PATCH', body: JSON.stringify(body) });
       }
       document.getElementById('add-account')?.addEventListener('click', async () => {
         const name = document.getElementById('new-account-name').value.trim() || 'Cash';
@@ -3529,6 +3678,7 @@
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') },
             body: JSON.stringify({ accountId: acctId, kind: payload.type, amountMajor: payload.amount, note: payload.name, category: payload.category }),
           });
+          if (res.status === 401) { expireSession(); return true; }
           if (!res.ok) throw new Error('save failed');
           await loadCloud();
           showDashboardToast('Saved to your cloud ledger.');
@@ -3542,12 +3692,47 @@
         if (!cloudMode || !api() || !api().isCloud()) return false;
         try {
           const r = await fetch(api().base + '/api/transactions/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') } });
+          if (r.status === 401) { expireSession(); return true; }
           if (!r.ok) { const j = await r.json().catch(() => ({})); showDashboardToast(j.error || 'Cannot remove linked entry.'); return true; }
           await loadCloud(); showDashboardToast('Removed from cloud.');
           return true;
         } catch { return false; }
       }
-      window.LedgerlyCloud = { loadCloud, loadPulse, refreshStatus, removeTransaction, showView, saveTransaction, refreshSummary, openDrawer };
+      async function updateTransaction(id, body) {
+        if (!cloudMode || !api() || !api().isCloud()) return false;
+        await cloudPatch('/api/transactions/' + id, body);
+        await loadCloud();
+        showDashboardToast('Transaction updated.');
+        return true;
+      }
+      document.getElementById('save-settings')?.addEventListener('click', async () => {
+        const homeCurrency = document.getElementById('settings-home-currency')?.value;
+        const locale = document.getElementById('settings-locale')?.value;
+        if (!homeCurrency) return;
+        try {
+          await cloudPatch('/api/auth/me', { homeCurrency, ...(locale ? { locale } : {}) });
+          await loadCloud();
+          showDashboardToast(`Reporting currency set to ${homeCurrency}.`);
+        } catch (error) { showDashboardToast(String(error.message)); }
+      });
+      document.getElementById('delete-account')?.addEventListener('click', async () => {
+        const password = document.getElementById('delete-account-password')?.value || '';
+        const confirmText = document.getElementById('delete-account-confirm')?.value || '';
+        if (!password) { showDashboardToast('Enter your password to delete the account.'); return; }
+        if (confirmText !== 'DELETE') { showDashboardToast('Type DELETE to confirm.'); return; }
+        if (!confirm('Delete this account and all of its data? This cannot be undone.')) return;
+        const btn = document.getElementById('delete-account');
+        btn.disabled = true;
+        try {
+          await cloudDelete('/api/auth/account', { password, confirm: 'DELETE' });
+          localStorage.removeItem('ledgerly.api.token');
+          cloudAccounts = [];
+          try { transactions = JSON.parse(localStorage.getItem('ledgerly.transactions.v1') || 'null') || transactions; } catch {}
+          refreshStatus(); renderDashboard();
+          showDashboardToast('Account deleted. Local demo active.');
+        } catch (error) { showDashboardToast(String(error.message)); btn.disabled = false; }
+      });
+      window.LedgerlyCloud = { loadCloud, loadPulse, refreshStatus, removeTransaction, updateTransaction, showView, saveTransaction, refreshSummary, openDrawer, updateAmountLabel, cloudFetch, cloudPost, cloudPatch, cloudDelete };
       refreshStatus();
       // Defer until LedgerlyAPI script loads
       let tries = 0;
@@ -3887,6 +4072,7 @@
     const dashState = {
       summary: null,
       homeCurrency: 'INR',
+      locale: undefined,
       range: 6,
       series: { income: true, expense: true },
       selectedMonth: null,
@@ -3933,20 +4119,31 @@
       if (window.LedgerlyAPI && window.LedgerlyAPI.isCloud() && window.LedgerlyAPI.base) {
         try {
           const res = await fetch(`${window.LedgerlyAPI.base}/api/summary?months=${months}`, { headers: { Authorization: 'Bearer ' + localStorage.getItem('ledgerly.api.token') } });
+          if (res.status === 401) { notifySessionExpired(); throw new Error('Session expired. Sign in again.'); }
           if (res.ok) {
             const data = await res.json();
             dashState.summary = data;
             dashState.homeCurrency = data.homeCurrency || 'INR';
+            dashState.locale = data.locale || undefined;
             return data;
           }
-        } catch (error) { console.info('Summary unavailable, using local ledger.', error); }
+        } catch (error) {
+          if (/session expired/i.test(String(error && error.message))) throw error;
+          console.info('Summary unavailable.', error);
+          dashState.summary = emptySummary();
+          return dashState.summary;
+        }
       }
       dashState.summary = localSummary(months);
       dashState.homeCurrency = dashState.summary.homeCurrency;
+      dashState.locale = undefined;
       return dashState.summary;
     }
 
-    function fmtHome(amount) { return formatMoney(amount, dashState.homeCurrency); }
+    function fmtHome(amount) {
+      if (amount === null || amount === undefined || !Number.isFinite(Number(amount))) return 'FX unavailable';
+      return formatMoney(Number(amount), dashState.homeCurrency);
+    }
 
     function renderChart() {
       const host = document.getElementById('cashflow-chart');
@@ -4033,7 +4230,17 @@
       if (incCount) incCount.textContent = `${incomeRows} recorded ${incomeRows === 1 ? 'entry' : 'entries'}`;
       if (expCount) expCount.textContent = `${expenseRows} recorded ${expenseRows === 1 ? 'entry' : 'entries'}`;
       const caption = document.getElementById('balance-caption');
-      if (caption) caption.textContent = `Across ${summary.accounts.length || 1} ${summary.accounts.length === 1 ? 'account' : 'accounts'} · ${dashState.homeCurrency}`;
+      if (caption && summary.unavailable) {
+        caption.textContent = 'Cloud data unavailable — no estimate shown.';
+      } else if (caption) {
+        const fx = summary.fx || {};
+        const missing = fx.missing || [];
+        const stale = fx.stale || [];
+        const suffix = missing.length
+          ? ` · FX unavailable for ${missing.join(', ')}`
+          : stale.length ? ` · stale rate for ${stale.map(item => item.pair).join(', ')}` : '';
+        caption.textContent = `Across ${summary.accounts.length || 1} ${summary.accounts.length === 1 ? 'account' : 'accounts'} · ${dashState.homeCurrency}${suffix}`;
+      }
     }
 
     function openInsightDetail(insight, payload) {
@@ -4111,7 +4318,7 @@
       document.querySelectorAll('[data-range]').forEach(button => button.addEventListener('click', async () => {
         document.querySelectorAll('[data-range]').forEach(b => b.classList.toggle('active', b === button));
         dashState.range = Number(button.dataset.range);
-        await refreshSummary();
+        try { await refreshSummary(); } catch { renderDashboard(); }
       }));
       document.querySelectorAll('[data-series]').forEach(button => button.addEventListener('click', () => {
         const key = button.dataset.series;
