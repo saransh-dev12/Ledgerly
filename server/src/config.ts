@@ -25,7 +25,9 @@ export function jwtSecret(): string {
 }
 
 export function frontendOrigins(): string[] {
-  return (process.env.FRONTEND_URL || '').split(',').map(value => value.trim()).filter(Boolean);
+  const origins = (process.env.FRONTEND_URL || '').split(',').map(value => value.trim()).filter(Boolean);
+  if (!origins.length && !isProduction) return ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  return origins;
 }
 
 export function requireDatabaseUrl(): string {

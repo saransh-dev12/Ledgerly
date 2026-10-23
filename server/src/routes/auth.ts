@@ -80,12 +80,15 @@ router.patch('/me', requireAuth, async (req: AuthedRequest, res) => {
   if (parsed.data.homeCurrency && !homeCurrency) { res.status(400).json({ error: 'Unsupported home currency.' }); return; }
   const data: any = { ...parsed.data };
   if (homeCurrency) data.homeCurrency = homeCurrency;
-  const user = await prisma.user.update({ where: { id: req.userId! }, data });
-  if (homeCurrency) {
-    // Rate snapshots are relative to the old home currency. Keep original
-    // transaction amounts, but let reporting revalue them with current rates.
-    await prisma.transaction.updateMany({ where: { userId: user.id }, data: { rateToHome: null } });
-  }
+  const [user] = await prisma.$transaction(async db => {
+    const updated = await db.user.update({ where: { id: req.userId! }, data });
+    if (homeCurrency) {
+      // Rate snapshots are relative to the old home currency. Keep original
+      // transaction amounts, but let reporting revalue them with current rates.
+      await db.transaction.updateMany({ where: { userId: updated.id }, data: { rateToHome: null } });
+    }
+    return [updated];
+  });
   res.json({ id: user.id, email: user.email, displayName: user.displayName, homeCurrency: user.homeCurrency, locale: user.locale });
 });
 

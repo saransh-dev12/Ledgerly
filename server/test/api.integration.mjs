@@ -57,6 +57,8 @@ async function run() {
   // Unsupported currency and non-finite values are rejected.
   const badCurrency = await call('/api/accounts', { method: 'POST', token: a.token, body: { name: 'Bad', currency: 'US' } });
   assert.equal(badCurrency.status, 400);
+  const unknownCurrency = await call('/api/accounts', { method: 'POST', token: a.token, body: { name: 'Bad', currency: 'ZZZ' } });
+  assert.equal(unknownCurrency.status, 400);
   const badOpening = await call('/api/accounts', { method: 'POST', token: a.token, body: { name: 'Bad', currency: 'INR', openingMajor: 1e30 } });
   assert.equal(badOpening.status, 400);
 
