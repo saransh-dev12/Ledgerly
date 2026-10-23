@@ -685,6 +685,8 @@
     .tx-field input::placeholder, .auth-form input::placeholder { color: #5f665c; }
     .tx-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .tx-error, .auth-error { min-height: 17px; margin-top: 10px; color: var(--red); font-size: 10px; }
+    .auth-error.is-success { color: var(--accent); }
+    .auth-form [hidden] { display: none !important; }
     .auth-row { display: flex; gap: 9px; margin-top: 12px; }
     .auth-row button { display: inline-flex; flex: 1; min-height: 40px; align-items: center; justify-content: center; border-radius: 9px; font-family: var(--sans); font-size: 10.5px; font-weight: 600; line-height: 1; letter-spacing: .4px; cursor: pointer; }
     .auth-primary { border: 1px solid rgb(198 244 50 / 62%); color: #0a0f18; background: var(--accent); }
@@ -1589,7 +1591,7 @@
             </section>
             <section class="dash-card dash-activity cloud-gate"><div class="dash-activity-top"><div><h2>Accounts live in the cloud</h2><p>Sign in to create wallets, hold multiple currencies, and transfer with live FX.</p></div></div><button class="dash-primary cloud-gate-signin" type="button">Sign in to unlock</button></section>
             <section class="cloud-grid duo cloud-only">
-              <article class="dash-card"><h3>Preferences</h3><p>Choose the currency your dashboard reports in. Original entry amounts never change.</p><div class="mini-form"><select id="settings-home-currency" aria-label="Home currency"><option>INR</option><option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>AUD</option><option>CAD</option><option>CHF</option><option>SGD</option><option>AED</option><option>BHD</option><option>KWD</option></select><select id="settings-locale" aria-label="Number and date locale"><option value="en-IN">en-IN</option><option value="en-US">en-US</option><option value="en-GB">en-GB</option><option value="de-DE">de-DE</option><option value="ja-JP">ja-JP</option><option value="ar-AE">ar-AE</option></select><button type="button" id="save-settings">Save preferences</button></div><p class="hint">Changing the reporting currency revalues prior entries with current rates; recorded amounts stay exactly as entered.</p></article>
+              <article class="dash-card"><h3>Preferences</h3><p>Choose the currency your dashboard reports in. Original entry amounts never change.</p><div class="mini-form"><select id="settings-home-currency" aria-label="Home currency"><option>INR</option><option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>AUD</option><option>CAD</option><option>CHF</option><option>SGD</option><option>AED</option><option>BHD</option><option>KWD</option></select><select id="settings-locale" aria-label="Number and date locale"><option value="en-IN">en-IN</option><option value="en-US">en-US</option><option value="en-GB">en-GB</option><option value="de-DE">de-DE</option><option value="ja-JP">ja-JP</option><option value="ar-AE">ar-AE</option></select><button type="button" id="save-settings">Save preferences</button></div><p class="hint">Changing the reporting currency revalues prior entries with current rates; recorded amounts stay exactly as entered.</p><div class="mini-form"><input id="change-password-current" type="password" placeholder="Current password" autocomplete="current-password" aria-label="Current password"><input id="change-password-new" type="password" placeholder="New password (min 8)" autocomplete="new-password" aria-label="New password"><button type="button" id="change-password">Change password</button></div><p class="hint">Changing your password signs out other devices.</p></article>
               <article class="dash-card"><h3>Danger zone</h3><p>Delete your account and every account, entry, budget and goal in it. Export CSV first.</p><div class="mini-form"><input id="delete-account-password" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password"><input id="delete-account-confirm" placeholder="Type DELETE" aria-label="Type DELETE to confirm"><button type="button" id="delete-account" class="row-del" style="width:auto;padding:0 10px">Delete account</button></div><p class="hint">This cannot be undone. The demo account is shared and should not be deleted.</p></article>
             </section>
           </div>
@@ -1717,12 +1719,14 @@
   </dialog>
   <div class="auth-modal" id="auth-modal" aria-hidden="true">
     <form class="auth-form" id="auth-form" novalidate>
-      <h2>Sign in to Roviel</h2><p>Cloud sync via Postgres. Demo still works offline.</p>
+      <h2 id="auth-title">Sign in to Roviel</h2><p id="auth-subtitle">Cloud sync via Postgres. Demo still works offline.</p>
       <input id="auth-email" type="email" placeholder="you@example.com" required autocomplete="email">
       <input id="auth-password" type="password" placeholder="Password (min 8)" required autocomplete="current-password">
-      <div class="auth-error" id="auth-error" role="alert"></div>
+      <input id="auth-password-confirm" type="password" placeholder="Confirm new password" autocomplete="new-password" hidden>
+      <div class="auth-error" id="auth-error" role="status" aria-live="polite"></div>
       <div class="auth-row"><button type="submit" class="auth-primary" id="auth-submit">Sign in</button><button type="button" class="auth-ghost" id="auth-signup">Create account</button></div>
-      <div class="auth-row"><button type="button" class="auth-ghost" id="auth-import">Import demo → cloud</button><button type="button" class="auth-ghost" id="auth-close">Close</button></div>
+      <div class="auth-row"><button type="button" class="auth-ghost" id="auth-forgot">Forgot password?</button><button type="button" class="auth-ghost" id="auth-import">Import demo → cloud</button></div>
+      <div class="auth-row"><button type="button" class="auth-ghost" id="auth-close">Close</button></div>
     </form>
   </div>
   <canvas id="webgl" aria-hidden="true"></canvas>
@@ -3399,6 +3403,17 @@
       const accountSel = document.getElementById('cloud-account');
       const authModal = document.getElementById('auth-modal');
       const authError = document.getElementById('auth-error');
+      const authTitle = document.getElementById('auth-title');
+      const authSubtitle = document.getElementById('auth-subtitle');
+      const authEmail = document.getElementById('auth-email');
+      const authPassword = document.getElementById('auth-password');
+      const authPasswordConfirm = document.getElementById('auth-password-confirm');
+      const authSubmit = document.getElementById('auth-submit');
+      const authSignupBtn = document.getElementById('auth-signup');
+      const authForgotBtn = document.getElementById('auth-forgot');
+      const authImportBtn = document.getElementById('auth-import');
+      let authMode = 'signin';
+      let resetTokenValue = '';
       let cloudAccounts = [];
       let cloudMode = false;
       let expiring = false;
@@ -3410,8 +3425,8 @@
         try { transactions = JSON.parse(localStorage.getItem('roviel.transactions.v1') || 'null') || transactions; } catch {}
         refreshStatus(); updateAmountLabel(); renderDashboard();
         showDashboardToast('Session expired. Sign in again.');
-        if (authError) authError.textContent = 'Your session expired. Sign in to continue syncing.';
-        openAuth();
+        openAuth('signin');
+        setAuthMessage('Your session expired. Sign in to continue syncing.');
         setTimeout(() => { expiring = false; }, 1500);
       }
       async function cloudFetch(path, opts = {}) {
@@ -3447,16 +3462,51 @@
         if (accountSel) accountSel.hidden = !on || cloudAccounts.length < 2;
         updateAmountLabel();
       }
-      document.querySelectorAll('.cloud-gate-signin').forEach(b => b.addEventListener('click', openAuth));
-      function openAuth() { authModal.classList.add('open'); authModal.setAttribute('aria-hidden', 'false'); }
-      function closeAuth() { authModal.classList.remove('open'); authModal.setAttribute('aria-hidden', 'true'); if (authError) authError.textContent = ''; }
-      document.getElementById('open-auth-modal')?.addEventListener('click', openAuth);
+      function setAuthMessage(message = '', success = false) {
+        if (!authError) return;
+        authError.textContent = message;
+        authError.classList.toggle('is-success', !!success);
+      }
+      function setAuthMode(mode) {
+        authMode = mode;
+        const reset = mode === 'reset';
+        const forgot = mode === 'forgot';
+        if (authTitle) authTitle.textContent = reset ? 'Choose a new password' : mode === 'signup' ? 'Create your Roviel account' : forgot ? 'Reset your password' : 'Sign in to Roviel';
+        if (authSubtitle) authSubtitle.textContent = reset
+          ? 'Use at least 8 characters. This link works once and expires after 30 minutes.'
+          : forgot ? 'Enter your account email. If it is registered, we will send a single-use reset link.'
+          : mode === 'signup' ? 'Cloud sync via Postgres. Demo still works offline.' : 'Cloud sync via Postgres. Demo still works offline.';
+        if (authEmail) { authEmail.hidden = reset; authEmail.disabled = reset; authEmail.required = !reset; }
+        if (authPassword) { authPassword.hidden = forgot; authPassword.value = ''; authPassword.autocomplete = mode === 'signin' ? 'current-password' : 'new-password'; }
+        if (authPasswordConfirm) { authPasswordConfirm.hidden = !reset; authPasswordConfirm.value = ''; }
+        if (authSubmit) { authSubmit.textContent = reset ? 'Update password' : forgot ? 'Send reset link' : mode === 'signup' ? 'Create account' : 'Sign in'; authSubmit.disabled = false; }
+        if (authSignupBtn) authSignupBtn.textContent = mode === 'signin' ? 'Create account' : 'Back to sign in';
+        if (authForgotBtn) authForgotBtn.hidden = mode !== 'signin';
+        if (authImportBtn) authImportBtn.hidden = mode !== 'signin';
+        setAuthMessage('');
+        if (!reset) resetTokenValue = '';
+      }
+      function openAuth(mode = 'signin') {
+        setAuthMode(mode);
+        authModal.classList.add('open');
+        authModal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => (mode === 'reset' ? authPassword : authEmail)?.focus({ preventScroll: true }), 40);
+      }
+      function closeAuth() {
+        authModal.classList.remove('open');
+        authModal.setAttribute('aria-hidden', 'true');
+        setAuthMode('signin');
+        resetTokenValue = '';
+      }
+      document.querySelectorAll('.cloud-gate-signin').forEach(b => b.addEventListener('click', () => openAuth()));
+      document.getElementById('open-auth-modal')?.addEventListener('click', () => openAuth());
       document.getElementById('auth-button')?.addEventListener('click', () => {
         if (api() && api().isCloud()) { api().logout(); cloudAccounts = []; dashState.summary = null; try { transactions = JSON.parse(localStorage.getItem('roviel.transactions.v1') || 'null') || transactions; } catch {} refreshStatus(); updateAmountLabel(); renderDashboard(); showDashboardToast('Signed out. Local demo active.'); }
         else openAuth();
       });
       document.getElementById('auth-close')?.addEventListener('click', closeAuth);
       authModal?.addEventListener('click', e => { if (e.target.id === 'auth-modal') closeAuth(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && authModal?.classList.contains('open')) closeAuth(); });
       async function afterAuth(r) {
         closeAuth(); dashState.summary = null; dashState.homeCurrency = 'INR'; dashState.locale = undefined; refreshStatus(); await loadCloud(); showDashboardToast('Signed in. Cloud sync on.');
       }
@@ -3468,24 +3518,52 @@
       }
       document.getElementById('auth-form')?.addEventListener('submit', async e => {
         e.preventDefault();
-        const email = document.getElementById('auth-email').value.trim();
-        const pw = document.getElementById('auth-password').value;
-        if (!email || !/^\S+@\S+\.\S+$/.test(email)) { authError.textContent = 'Enter a valid email address.'; return; }
-        if (pw.length < 8) { authError.textContent = 'Password must be at least 8 characters.'; return; }
-        try { await api().login(email, pw); await afterAuth(); }
-        catch (err) { authError.textContent = friendlyAuthError(err); }
+        const email = authEmail.value.trim();
+        const pw = authPassword.value;
+        setAuthMessage('');
+        if (authMode === 'reset') {
+          if (!resetTokenValue) { setAuthMessage('This reset link is incomplete. Request a new one.'); return; }
+          if (pw.length < 8) { setAuthMessage('Password must be at least 8 characters.'); return; }
+          if (pw !== authPasswordConfirm.value) { setAuthMessage('The passwords do not match.'); return; }
+          authSubmit.disabled = true;
+          try {
+            await api().resetPassword(resetTokenValue, pw);
+            const resetEmail = email;
+            resetTokenValue = '';
+            setAuthMode('signin');
+            if (authEmail) authEmail.value = resetEmail;
+            setAuthMessage('Password updated. Sign in with your new password.', true);
+          } catch (err) { setAuthMessage(friendlyAuthError(err)); }
+          finally { authSubmit.disabled = false; }
+          return;
+        }
+        if (!email || !/^\S+@\S+\.\S+$/.test(email)) { setAuthMessage('Enter a valid email address.'); return; }
+        if (authMode === 'forgot') {
+          authSubmit.disabled = true;
+          try {
+            const result = await api().forgotPassword(email);
+            setAuthMessage(result.message || 'If that email is registered, a reset link is on its way.', true);
+          } catch (err) { setAuthMessage(friendlyAuthError(err)); }
+          finally { authSubmit.disabled = false; }
+          return;
+        }
+        if (pw.length < 8) { setAuthMessage('Password must be at least 8 characters.'); return; }
+        authSubmit.disabled = true;
+        try {
+          if (authMode === 'signup') await api().signup(email, pw);
+          else await api().login(email, pw);
+          await afterAuth();
+        } catch (err) { setAuthMessage(friendlyAuthError(err)); }
+        finally { authSubmit.disabled = false; }
       });
-      document.getElementById('auth-signup')?.addEventListener('click', async () => {
-        const email = document.getElementById('auth-email').value.trim();
-        const pw = document.getElementById('auth-password').value;
-        if (!email || !/^\S+@\S+\.\S+$/.test(email)) { authError.textContent = 'Enter a valid email address.'; return; }
-        if (pw.length < 8) { authError.textContent = 'Password must be at least 8 characters.'; return; }
-        try { await api().signup(email, pw); await afterAuth(); }
-        catch (err) { authError.textContent = friendlyAuthError(err); }
+      authSignupBtn?.addEventListener('click', () => {
+        if (authMode === 'signin') openAuth('signup');
+        else openAuth('signin');
       });
-      document.getElementById('auth-import')?.addEventListener('click', async () => {
+      authForgotBtn?.addEventListener('click', () => openAuth('forgot'));
+      authImportBtn?.addEventListener('click', async () => {
         try { await api().importDemo(async () => cloudAccounts.length ? cloudAccounts : api().base ? await fetch(api().base + '/api/accounts', { headers: { Authorization: 'Bearer ' + localStorage.getItem('roviel.api.token') } }).then(r => r.json()) : []); await loadCloud(); showDashboardToast('Demo imported to cloud.'); }
-        catch (err) { authError.textContent = String(err.message || err); }
+        catch (err) { setAuthMessage(String(err.message || err)); }
       });
       function updateAmountLabel() {
         const lbl = document.querySelector('label[for="transaction-amount"]');
@@ -3729,6 +3807,23 @@
           showDashboardToast(`Reporting currency set to ${homeCurrency}.`);
         } catch (error) { showDashboardToast(String(error.message)); }
       });
+      document.getElementById('change-password')?.addEventListener('click', async () => {
+        if (!window.RovielAPI || !window.RovielAPI.isCloud()) { showDashboardToast('Sign in to change your password.'); return; }
+        const current = document.getElementById('change-password-current')?.value || '';
+        const next = document.getElementById('change-password-new')?.value || '';
+        if (!current) { showDashboardToast('Enter your current password.'); return; }
+        if (next.length < 8) { showDashboardToast('New password must be at least 8 characters.'); return; }
+        if (current === next) { showDashboardToast('Choose a different password.'); return; }
+        const btn = document.getElementById('change-password');
+        btn.disabled = true;
+        try {
+          await window.RovielAPI.changePassword(current, next);
+          document.getElementById('change-password-current').value = '';
+          document.getElementById('change-password-new').value = '';
+          showDashboardToast('Password changed. Other devices were signed out.');
+        } catch (error) { showDashboardToast(String(error.message || error)); }
+        finally { btn.disabled = false; }
+      });
       document.getElementById('delete-account')?.addEventListener('click', async () => {
         const password = document.getElementById('delete-account-password')?.value || '';
         const confirmText = document.getElementById('delete-account-confirm')?.value || '';
@@ -3746,6 +3841,16 @@
           showDashboardToast('Account deleted. Local demo active.');
         } catch (error) { showDashboardToast(String(error.message)); btn.disabled = false; }
       });
+      try {
+        const resetUrl = new URL(window.location.href);
+        const token = resetUrl.searchParams.get('reset');
+        if (token) {
+          resetTokenValue = token;
+          resetUrl.searchParams.delete('reset');
+          history.replaceState({}, '', resetUrl.pathname + resetUrl.search + resetUrl.hash);
+          openAuth('reset');
+        }
+      } catch {}
       window.RovielCloud = { loadCloud, loadPulse, refreshStatus, removeTransaction, updateTransaction, showView, saveTransaction, refreshSummary, openDrawer, updateAmountLabel, cloudFetch, cloudPost, cloudPatch, cloudDelete };
       refreshStatus();
       // Defer until RovielAPI script loads

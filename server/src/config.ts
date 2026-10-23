@@ -30,6 +30,14 @@ export function frontendOrigins(): string[] {
   return origins;
 }
 
+export function appBaseUrl(): string {
+  const explicit = (process.env.APP_URL || '').trim().replace(/\/$/, '');
+  if (explicit) return explicit;
+  const origin = frontendOrigins()[0];
+  if (origin) return origin.replace(/\/$/, '');
+  return 'http://localhost:5173';
+}
+
 export function requireDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is required.');

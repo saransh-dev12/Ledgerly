@@ -441,6 +441,33 @@ try {
   }
   check('auth: failed logins rate-limited', codes.includes(429), codes.join(','));
   await auth.close();
+
+  // ================= ACCOUNT RECOVERY UI =================
+  const recovery = await newPage();
+  await recovery.goto(WEB + '/?reset=e2e-invalid-reset-token', { waitUntil: 'domcontentloaded' });
+  await ready(recovery);
+  await recovery.waitForSelector('#auth-modal.open');
+  check('recovery: reset link opens the reset form', (await recovery.locator('#auth-title').innerText()) === 'Choose a new password');
+  check('recovery: reset token removed from the URL', !recovery.url().includes('reset='));
+  await recovery.fill('#auth-password', 'new-password-456');
+  await recovery.fill('#auth-password-confirm', 'new-password-457');
+  await recovery.click('#auth-submit');
+  check('recovery: mismatched passwords rejected', (await recovery.locator('#auth-error').innerText()).includes('do not match'));
+  await recovery.fill('#auth-password-confirm', 'new-password-456');
+  await recovery.click('#auth-submit');
+  await recovery.waitForFunction(() => /invalid or has expired/i.test(document.querySelector('#auth-error')?.textContent || ''), { timeout: 10000 });
+  check('recovery: invalid reset token rejected', (await recovery.locator('#auth-error').innerText()).includes('invalid or has expired'));
+  await recovery.click('#auth-close');
+  await recovery.click('#open-auth-modal');
+  await recovery.click('#auth-forgot');
+  check('recovery: forgot-password form opens', (await recovery.locator('#auth-title').innerText()) === 'Reset your password');
+  await recovery.fill('#auth-email', `missing-e2e-${Date.now()}@example.com`);
+  await recovery.click('#auth-submit');
+  await recovery.waitForFunction(() => /reset link/i.test(document.querySelector('#auth-error')?.textContent || ''), { timeout: 10000 });
+  check('recovery: forgot response is non-enumerating', (await recovery.locator('#auth-error').innerText()).includes('If that email is registered'));
+  await recovery.click('#auth-signup');
+  check('recovery: back to sign in works', (await recovery.locator('#auth-title').innerText()) === 'Sign in to Roviel');
+  await recovery.close();
 } catch (e) {
   console.log('SUITE ABORT:', String(e).slice(0, 400));
 }

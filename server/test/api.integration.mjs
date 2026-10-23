@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import { PrismaClient } from '@prisma/client';
 
+const db = new PrismaClient();
 const base = (process.env.API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const testIp = `198.51.100.${Math.floor(Math.random() * 200) + 20}`;
@@ -23,9 +26,12 @@ async function signup(label) {
   const res = await call('/api/auth/signup', { method: 'POST', body: { email, password } });
   assert.equal(res.status, 200, `signup ${label}: ${JSON.stringify(res.body)}`);
   assert.equal(res.body.user.email, email.toLowerCase(), 'email must be normalized');
-  created.push({ email: res.body.user.email, token: res.body.token });
-  return res.body;
+  const user = { email: res.body.user.email, token: res.body.token, password };
+  created.push(user);
+  return { ...res.body, password };
 }
+
+const resetHash = token => crypto.createHash('sha256').update(token).digest('hex');
 
 async function createAccount(token, { name = 'Test', currency = 'INR', openingMajor = 0 } = {}) {
   const res = await call('/api/accounts', { method: 'POST', token, body: { name, currency, openingMajor } });
@@ -51,8 +57,62 @@ async function run() {
   assert.equal(duplicate.status, 409);
 
   // Login is case-insensitive too.
-  const login = await call('/api/auth/login', { method: 'POST', body: { email: `API.TEST+${stamp}-A@example.com`, password } });
+  const login = await call('/api/auth/login', { method: 'POST', body: { email: `API.TEST+${stamp}-A@Example.COM`, password } });
   assert.equal(login.status, 200);
+
+  // Password recovery is single-use, expiring and non-enumerating.
+  const c = await signup('c');
+  const cUser = await db.user.findUnique({ where: { email: c.user.email } });
+  assert.ok(cUser);
+  const forgotExisting = await call('/api/auth/forgot-password', { method: 'POST', body: { email: c.user.email } });
+  assert.equal(forgotExisting.status, 202);
+  assert.equal(forgotExisting.body.message, 'If that email is registered, a reset link is on its way.');
+  assert.ok(await db.passwordResetToken.findFirst({ where: { userId: cUser.id } }));
+  const forgotMissing = await call('/api/auth/forgot-password', { method: 'POST', body: { email: `missing-${stamp}@example.com` } });
+  assert.equal(forgotMissing.status, 202);
+  assert.deepEqual(forgotMissing.body, forgotExisting.body);
+  const forgotInvalid = await call('/api/auth/forgot-password', { method: 'POST', body: { email: 'not-an-email' } });
+  assert.equal(forgotInvalid.status, 400);
+
+  await db.passwordResetToken.deleteMany({ where: { userId: cUser.id } });
+  const resetToken = crypto.randomBytes(32).toString('base64url');
+  await db.passwordResetToken.create({
+    data: { userId: cUser.id, tokenHash: resetHash(resetToken), expiresAt: new Date(Date.now() + 30 * 60_000) },
+  });
+  const newPassword = 'new-password-456';
+  assert.equal((await call('/api/auth/reset-password', { method: 'POST', body: { token: resetToken, password: 'short' } })).status, 400);
+  assert.equal((await call('/api/auth/reset-password', { method: 'POST', body: { token: 'not-a-real-token-not-a-real-token', password: newPassword } })).status, 400);
+  const reset = await call('/api/auth/reset-password', { method: 'POST', body: { token: resetToken, password: newPassword } });
+  assert.equal(reset.status, 200, JSON.stringify(reset.body));
+  assert.equal((await call('/api/auth/reset-password', { method: 'POST', body: { token: resetToken, password: newPassword } })).status, 400);
+  assert.equal((await call('/api/auth/me', { token: c.token })).status, 401, 'reset must revoke existing sessions');
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: c.user.email, password } })).status, 401);
+  const newLogin = await call('/api/auth/login', { method: 'POST', body: { email: c.user.email, password: newPassword } });
+  assert.equal(newLogin.status, 200);
+  c.password = newPassword;
+  c.token = newLogin.body.token;
+
+  const expiredToken = crypto.randomBytes(32).toString('base64url');
+  await db.passwordResetToken.create({
+    data: { userId: cUser.id, tokenHash: resetHash(expiredToken), expiresAt: new Date(Date.now() - 1_000) },
+  });
+  assert.equal((await call('/api/auth/reset-password', { method: 'POST', body: { token: expiredToken, password: 'another-password-789' } })).status, 400);
+
+  // A signed-in password change revokes other sessions and returns a fresh token.
+  const d = await signup('d');
+  const changedWrong = await call('/api/auth/change-password', { method: 'POST', token: d.token, body: { currentPassword: 'wrong-password', newPassword: 'new-password-456' } });
+  assert.equal(changedWrong.status, 401);
+  const changedSame = await call('/api/auth/change-password', { method: 'POST', token: d.token, body: { currentPassword: password, newPassword: password } });
+  assert.equal(changedSame.status, 400);
+  const changed = await call('/api/auth/change-password', { method: 'POST', token: d.token, body: { currentPassword: password, newPassword: 'new-password-456' } });
+  assert.equal(changed.status, 200, JSON.stringify(changed.body));
+  assert.ok(changed.body.token);
+  assert.equal((await call('/api/auth/me', { token: d.token })).status, 401);
+  assert.equal((await call('/api/auth/me', { token: changed.body.token })).status, 200);
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: d.user.email, password } })).status, 401);
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: d.user.email, password: 'new-password-456' } })).status, 200);
+  d.password = 'new-password-456';
+  d.token = changed.body.token;
 
   // Unsupported currency and non-finite values are rejected.
   const badCurrency = await call('/api/accounts', { method: 'POST', token: a.token, body: { name: 'Bad', currency: 'US' } });
@@ -138,6 +198,9 @@ try {
   console.log('API integration tests passed.');
 } finally {
   for (const user of created) {
-    await call('/api/auth/account', { method: 'DELETE', token: user.token, body: { password, confirm: 'DELETE' } }).catch(() => {});
+    const freshLogin = await call('/api/auth/login', { method: 'POST', body: { email: user.email, password: user.password } }).catch(() => null);
+    const token = freshLogin?.body?.token || user.token;
+    await call('/api/auth/account', { method: 'DELETE', token, body: { password: user.password, confirm: 'DELETE' } }).catch(() => {});
   }
+  await db.$disconnect();
 }

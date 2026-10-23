@@ -28,6 +28,13 @@
     isCloud() { return !!getBase() && !!localStorage.getItem(tokenKey); },
     async signup(email, password) { const r = await req('/api/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) }); localStorage.setItem(tokenKey, r.token); return r; },
     async login(email, password) { const r = await req('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }); localStorage.setItem(tokenKey, r.token); return r; },
+    forgotPassword: (email) => req('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword: (token, password) => req('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+    async changePassword(currentPassword, newPassword) {
+      const r = await req('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+      if (r.token) localStorage.setItem(tokenKey, r.token);
+      return r;
+    },
     async logout() {
       const token = localStorage.getItem(tokenKey);
       localStorage.removeItem(tokenKey);
