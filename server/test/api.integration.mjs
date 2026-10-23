@@ -43,6 +43,7 @@ async function run() {
   // Config/health
   const health = await call('/health');
   assert.equal(health.status, 200);
+  assert.equal(health.body.database, 'up');
 
   // Signup starts at zero, not a fabricated opening balance.
   const a = await signup('a');

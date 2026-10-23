@@ -84,7 +84,8 @@ Open <http://localhost:5173>. Use the public converter without an account; sign 
 ```sh
 npm run test:unit     # minor-unit maths: JPY (1), KWD (1000), fees
 npm run test:e2e      # reseeds the demo, then runs 105 Playwright checks
-npm run lint         # oxlint
+npm run smoke:prod    # web, API/DB health, FX freshness and auth boundary
+npm run lint          # oxlint
 ```
 
 The E2E suite drives a real Chromium instance and asserts exact values rather than labels. It also covers password-reset form states and non-enumerating forgot-password responses; the API integration suite exercises reset expiry, single-use tokens, session revocation and signed-in password changes. A ₹250 expense must raise spending by exactly ₹250, a ₹2,000 budget must report a ₹2,000 limit and 0% spend, a ₹1,000 goal contribution must move the saved amount by ₹1,000, a transfer of ₹100 must debit the source by ₹100, conversions and quotes are compared against the displayed rate, and chart months are checked against `/api/summary`. It also covers landing scroll-snap, auth, every dashboard view, budgets/goals/recurring creation and deletion, CSV export, mobile layout, and a fully-blocked-network offline pass. The suite reseeds the demo account first, so it is repeatable.
@@ -150,6 +151,22 @@ npm run db:migrate    # only if the backup predates the current schema
 ```
 
 `backups/` is gitignored. Keep dumps outside the repository and never commit credentials or dumps. For the bundled demo, `npm run db:seed` rebuilds the sample ledger; it is destructive to the `demo@ledgerly.app` user only.
+
+Run a real restore drill against a disposable database or a Neon branch before cutting over production:
+
+```sh
+createdb roviel_restore_drill
+SOURCE_DATABASE_URL='postgresql:///roviel' \
+DRILL_DATABASE_URL='postgresql:///roviel_restore_drill' \
+DRILL_CONFIRM=RESTORE-DRILL ./scripts/restore-drill.sh
+dropdb roviel_restore_drill
+```
+
+The script dumps the source, refuses a non-empty target, restores into it, compares every public table and migration count, and never drops the target itself. A local drill against all five migrations passed on 2026-10-23.
+
+### Uptime checks
+
+`.github/workflows/uptime.yml` runs `npm run smoke:prod` every 30 minutes and on demand. It checks the web alias, `/health` (including the database when the deployed API reports it), a dated USD/EUR quote, the full currency directory and the 401 boundary on summary data. A failed run notifies repository watchers through GitHub Actions; no production credentials are stored in the workflow.
 
 ## Security and correctness notes
 

@@ -14,7 +14,8 @@
     "db:migrate": "npm run prisma:migrate --prefix server",
     "db:seed": "npm run seed --prefix server",
     "test:unit": "vitest run",
-    "test:api": "node server/test/api.integration.mjs"
+    "test:api": "node server/test/api.integration.mjs",
+    "smoke:prod": "node scripts/production-smoke.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

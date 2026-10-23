@@ -13,6 +13,7 @@ import fx from './routes/fx.js';
 import insights from './routes/insights.js';
 import summary from './routes/summary.js';
 import { assertConfig, frontendOrigins } from './config.js';
+import { prisma } from './lib/db.js';
 
 assertConfig();
 
@@ -24,7 +25,14 @@ app.use(express.json({ limit: '100kb' }));
 app.use(morgan('tiny'));
 app.use(rateLimit({ windowMs: 60_000, max: 240, standardHeaders: true, legacyHeaders: false, skip: (req) => req.path === '/health' }));
 
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'roviel-api', time: new Date().toISOString() }));
+app.get('/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, service: 'roviel-api', database: 'up', time: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ ok: false, service: 'roviel-api', database: 'down', time: new Date().toISOString() });
+  }
+});
 app.use('/api/auth', auth);
 app.use('/api/accounts', accounts);
 app.use('/api/transactions', transactions);
